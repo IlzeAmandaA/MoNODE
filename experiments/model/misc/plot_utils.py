@@ -28,25 +28,25 @@ def plot_rot_mnist(X, Xrec, show=False, fname='rot_mnist.png', N=None):
 
 def plot_latent_traj(Q, Nplot=10, show=False, fname='rot_mnist_latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)
     [N,T,q] = Q.squeeze(0).shape 
-	if q>2:
-		Q = Q.reshape(N*T,q)
-		U,S,V = torch.pca_lowrank(Q, q=min(q,10))
-		Qpca = Q @ V[:,:2] 
-		Qpca = Qpca.reshape(N,T,2).detach().cpu().numpy() # N,T,2
-		S = S / S.sum()
-	else:
-		Qpca = Q.detach().cpu().numpy()
-	plt.figure(1,(5,5))
-	for n in range(Nplot):
-		plt.plot(Qpca[n,:,0], Qpca[n,:,1], '*-', markersize=6)
-		plt.plot(Qpca[n,0,0], Qpca[n,0,1], '+', markersize=10)
-	if q>2:
-		plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
-		plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
-	plt.tight_layout()
-	plt.savefig(os.path.join('figs',fname))
-	if show is False:
-		plt.close()
+    if q>2:
+        Q = Q.reshape(N*T,q)
+        U,S,V = torch.pca_lowrank(Q, q=min(q,10))
+        Qpca = Q @ V[:,:2] 
+        Qpca = Qpca.reshape(N,T,2).detach().cpu().numpy() # N,T,2
+        S = S / S.sum()
+    else:
+        Qpca = Q.detach().cpu().numpy()
+    plt.figure(1,(5,5))
+    for n in range(Nplot):
+        plt.plot(Qpca[n,:,0], Qpca[n,:,1], '*-', markersize=6)
+        plt.plot(Qpca[n,0,0], Qpca[n,0,1], '+', markersize=10)
+    if q>2:
+        plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
+        plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
+    plt.tight_layout()
+    plt.savefig(os.path.join('figs',fname))
+    if show is False:
+        plt.close()
 
 def plot_trace(elbo_meter, nll_meter,  z_kl_meter, inducing_kl_meter, args, make_plot=False): 
     fig, axs = plt.subplots(2, 2, figsize=(20, 16))

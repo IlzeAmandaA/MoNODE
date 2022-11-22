@@ -1,8 +1,9 @@
 import torch
+import torch.nn as nn
 
 
 class INVODEVAE(nn.Module):
-    def __init__(self, flow=flow, vae= vae, gp = gp, num_observations= args.Ntrain, order = args.order, steps=args.frames, dt = args.dt) -> None:
+    def __init__(self, flow,vae, gp, num_observations, order, steps, dt) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
@@ -62,7 +63,9 @@ class INVODEVAE(nn.Module):
             z0 = torch.concat([z0,v0],dim=1) #N, 2q
 
         #encode content (invariance)
-        qz_st = self.vae.encoder(X.rehape(N*T, nc,d,d), content=True) # NT,q
+        qz_st = self.vae.encoder(X.reshape(N*T, nc,d,d), content=True) # NT,q
+        print('HERE')
+        print(self.gp(qz_st))
         inv_z_st = self.gp(qz_st).rsmaple().reshape(N,T,-1).mean(1)
 
         #sample ODE trajectories 

@@ -2,7 +2,7 @@ import torch
 from torch.distributions import kl_divergence as kl
 import sys
 
-from model.core.svgp import SVGP
+from model.core.svgp import SVGP_Layer
 from model.core.mlp import MLP
 from model.core.sgp import SGP
 from model.core.flow import Flow
@@ -11,7 +11,7 @@ from model.core.invodevae import INVODEVAE
 
 
 
-def build_model(args):
+def build_model(args, device):
     """
     Builds a model object of odevaegp.ODEVAEGP based on training sequence
 
@@ -26,9 +26,10 @@ def build_model(args):
                         S=args.num_features,
                         dimwise=args.dimwise,
                         q_diag=args.q_diag,
-                        device= args.device,
+                        device= device,
                         kernel = args.kernel)
-        de = initialize_and_fix_kernel_parameters(de, lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
+
+        de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
     
     elif args.de == 'MLP':
         de = MLP(args.D_in, args.D_out, L=2, H=100, act='relu') #TODO add as parser args
@@ -38,19 +39,19 @@ def build_model(args):
         sys.exit()
 
     #marginal invariance
-    gp = SGP(torch.randn(args.num_inducing, args.D_out), args.D_out)
+    gp = SGP(torch.randn(args.num_inducing_inv, args.D_out), args.D_out)
 
     #continous latent ode 
     flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
 
     #encoder & decoder
-    vae = VAE(frames = args.frames, n_filt=args.n_filt, latent_dim=args.latent_dim ,order= args.ode, device=args.device)
+    vae = VAE(frames = args.frames, n_filt=args.n_filt, latent_dim=args.latent_dim ,order= args.ode, device=device)
 
     #full model
     inodevae = INVODEVAE(flow=flow,
                         vae= vae,
                         gp = gp,
-                        num_observations= args.Ndata,
+                        num_observations= args.Ntrain,
                         order = args.ode,
                         steps=args.frames,
                         dt = args.dt)

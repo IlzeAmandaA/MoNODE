@@ -8,20 +8,21 @@ plt.switch_backend('agg')
 
 from .utils import Dataset
 
-def load_rotmnist_data(args, plot=True):
+T=16
+
+def load_rotmnist_data(args, device, plot=True):
 	fullname = os.path.join(args.data_root, "rot_mnist", "rot-mnist.mat")
 	dataset = sio.loadmat(fullname)
 	
 	X = dataset['X'].squeeze()
-	if args.mask:
-		Y = dataset['Y'].suqeeze() 
+	if args.value:
+		Y = dataset['Y'].squeeze() 
 		X = X[Y==args.value,:,:]
 
 	N = args.Ntrain #train
 	Nt = args.Nvalid + N # valid
-	T = args.T #16
-	Xtr   = torch.tensor(X[:N],dtype=torch.float32, device=args.device).view([N,T,1,28,28])
-	Xtest = torch.tensor(X[N:Nt],dtype=torch.float32, device=args.device).view([-1,T,1,28,28])
+	Xtr   = torch.tensor(X[:N],dtype=torch.float32, device=device).view([N,T,1,28,28])
+	Xtest = torch.tensor(X[N:Nt],dtype=torch.float32, device=device).view([-1,T,1,28,28])
 
 	if args.rotrand:
 		Xtr   = torch.cat([Xtr,Xtr[:,1:]],1) # N,2T,1,d,d
@@ -44,8 +45,8 @@ def load_rotmnist_data(args, plot=True):
 		for j in range(6):
 			for i in range(16):
 				plt.subplot(7,20,j*20+i+1)
-				plt.imshow(np.reshape(x[j,i,:],[28,28]), cmap='gray');
+				plt.imshow(np.reshape(x[j,i,:].detach().cpu().numpy(),[28,28]), cmap='gray');
 				plt.xticks([]); plt.yticks([])
-		plt.savefig(os.path.join(args.save, 'plots/data.png'))
+		plt.savefig(os.path.join(args.save, 'plots/data_example.png'))
 		plt.close()
 	return trainset, testset

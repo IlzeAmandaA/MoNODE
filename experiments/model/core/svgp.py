@@ -65,7 +65,6 @@ class SVGP_Layer(torch.nn.Module):
         else:
             sys.exit('Invalid kernel selection')
 
-        self.kernel_n = kernel
         self.q_diag = q_diag
         self.D_out = D_out
         self.D_in = D_in
@@ -73,21 +72,42 @@ class SVGP_Layer(torch.nn.Module):
         self.S = S
         self.device = device
 
-        self.inducing_loc = Param(np.random.normal(size=(M, D_in)), name='Inducing locations')  # (M,D_in)
-        self.Um = Param(np.random.normal(size=(M, D_out)) * 1e-1, name='Inducing distribution (mean)')  # (M,D_out)
+        self.inducing_loc = Param(np.random.normal(size=(M, D_in)), name='Inducing locations',device=device)  # (M,D_in)
+        self.Um = Param(np.random.normal(size=(M, D_out)) * 1e-1, name='Inducing distribution (mean)',device=device)  # (M,D_out)
 
         if self.q_diag:
             self.Us_sqrt = Param(np.ones(shape=(M, D_out)) * 1e-3,  # (M,D_out)
                                  transform=transforms.SoftPlus(),
-                                 name='Inducing distribution (scale)')
+                                 name='Inducing distribution (scale)',
+                                 device=device)
         else:
             self.Us_sqrt = Param(np.stack([np.eye(M)] * D_out) * 1e-3,  # (D_out,M,M)
                                  transform=transforms.LowerTriangular(M, D_out, device=self.device),
-                                 name='Inducing distribution (scale)')
+                                 name='Inducing distribution (scale)',
+                                 device=device)
 
     @property
     def type(self):
         return 'SVGP'
+
+    def initialize_and_fix_kernel_parameters(self, lengthscale_value=1.25, variance_value=0.5, fix=False):
+        """
+        Initializes and optionally fixes kernel parameter 
+
+        @param model: a gpode.SequenceModel object
+        @param lengthscale_value: initialization value for kernel lengthscales parameter
+        @param variance_value: initialization value for kernel signal variance parameter
+        @param fix: a flag variable to fix kernel parameters during optimization
+        @return: the model object after initialization
+        """
+        self.kern.unconstrained_lengthscales.data = transforms.invsoftplus(
+            lengthscale_value * torch.ones_like(self.kern.unconstrained_lengthscales.data))
+        self.kern.unconstrained_variance.data = transforms.invsoftplus(
+            variance_value * torch.ones_like(self.kern.unconstrained_variance.data))
+        if fix:
+            self.kern.unconstrained_lengthscales.requires_grad_(False)
+            self.kern.unconstrained_variance.requires_grad_(False)
+
 
     def sample_inducing(self):
         """
@@ -140,17 +160,9 @@ class SVGP_Layer(torch.nn.Module):
         # compute pathwise updates 
         f_update = self.kern.f_update(x, self.inducing_loc()) #N, D 
 
-        # # sample from the GP posterior
-        # if self.kernel_n == 'DF':
-        #    # print('fprior', f_prior[0,0:10])
-        #     f_prior = torch.reshape(f_prior, (x.shape[0],self.D_in, self.D_out, self.D_in))
-        #    # print('fupdate', f_update[0,0:10])
-        #     f_update = torch.reshape(f_update, (x.shape[0],self.D_in, self.D_out, self.D_in))
-        #     dx = torch.einsum('nidj, nidj -> nd', f_prior, f_update)
-        # else:           
+        # # sample from the GP posterior      
         dx = f_prior + f_update 
 
-       # print(dx[0,:])
         return dx  # (N,D_out)
 
     def kl(self):

@@ -37,15 +37,8 @@ class SGP(ApproximateGP):
         variational_distribution = U_VAR_DIST(inducing_points.size(-2), batch_shape=torch.Size([nout]))
         base_variational_strategy = VAR_CLS(self, inducing_points, variational_distribution, learn_inducing_locations=True)
         variational_strategy = IndependentMultitaskVariationalStrategy(base_variational_strategy, num_tasks=nout)
-        super().__init__(variational_strategy)
-        self.kernel   = kernel
-        self.whitened = whitened
-        self.u_var = u_var
-        self.nout  = nout
-        self.nin   = inducing_points.shape[-1]
-        self.M     = inducing_points.shape[-2]
-        
-        # mean and covariance modules
+        super().__init__(variational_strategy)Traceback (most recent call last):
+
         self.mean_module = gpytorch.means.ZeroMean(batch_shape=torch.Size([nout]))
         if self.kernel=='rbf':
             self.base_kernel = RBFKernel(self.nin) 
