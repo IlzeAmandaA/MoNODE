@@ -44,7 +44,7 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='rot_mnist_latents.png'): #T
         plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
         plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
     plt.tight_layout()
-    plt.savefig(os.path.join('figs',fname))
+    plt.savefig(fname)
     if show is False:
         plt.close()
 

@@ -18,7 +18,8 @@ class INVODEVAE(nn.Module):
         """
         Given a mean of the latent space decode the input back into the original space.
 
-        @param ztL: latent variable (L,N,T,2q)
+        @param ztL: latent variable (L,N,T,q)
+        @param inv_z: invaraiant latent variable (N,q)
         @param dims: dimensionality of the original variable 
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
@@ -29,9 +30,8 @@ class INVODEVAE(nn.Module):
             q = ztL.shape[-1]//2
             st_muL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
-        st = torch.cat([st, torch.stack([inv_z]*ztL.shape[2],1).unsqueeze(0)], -1) #TODO check dims
-        #st = st.view([N*T,-1]) i take care of this in the decoder
-        Xrec = self.vae.decoder(st_muL) # L*N*T,nc,d,d
+        st = torch.cat([st_muL, torch.stack([inv_z]*ztL.shape[2],1).repeat(L,1,1,1)], -1) #L,N,T,2q
+        Xrec = self.vae.decoder(st) # L*N*T,nc,d,d
         Xrec = Xrec.view([L,N,T,nc,d,d]) # L,N,T,nc,d,d
         return Xrec
     
@@ -64,9 +64,8 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         qz_st = self.vae.encoder(X.reshape(N*T, nc,d,d), content=True) # NT,q
-        print('HERE')
-        print(self.gp(qz_st))
-        inv_z_st = self.gp(qz_st).rsmaple().reshape(N,T,-1).mean(1)
+        inv_z_st = self.gp(qz_st).rsample().reshape(N,T,-1).mean(1) #N,q
+
 
         #sample ODE trajectories 
         ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q

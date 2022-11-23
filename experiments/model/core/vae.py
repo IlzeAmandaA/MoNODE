@@ -111,7 +111,7 @@ class Decoder(nn.Module):
         self.distribution = distribution
 
         h_dim = n_filt*4**3 # encoder output is [4*n_filt,4,4]
-        self.fc = nn.Linear(latent_dim, h_dim)
+        self.fc = nn.Linear(latent_dim+latent_dim, h_dim)
 
         self.decnn = nn.Sequential(
             UnFlatten(4),

@@ -92,6 +92,8 @@ parser.add_argument('--continue_training', type=eval, default=False,
 #log 
 parser.add_argument('--save', type=str, default='results/',
                     help="Directory name for saving all the model outputs")
+parser.add_argument('--log_freq', type=int, default=5,
+                    help="Logging frequency while training")
 
 
 
@@ -149,10 +151,6 @@ if __name__ == '__main__':
             minibatch = local_batch.to(device) # B x T x 1 x 28 x 28 (batch, time, image dim)
             loss, nlhood, kl_reg, kl_u, Xrec_tr, ztL_tr = compute_loss(invodevae, minibatch, L)
 
-            # if torch.isnan(loss):
-            #     cache_results(logger, args, odegpvae, trainset, testset, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter,  hyperparam_meter) 
-            #     sys.exit()
-
             optimizer.zero_grad()
             loss.backward() 
             optimizer.step()
@@ -177,14 +175,15 @@ if __name__ == '__main__':
             mse_meter.reset()
             for itr_test,test_batch in enumerate(testset):
                 test_batch = test_batch.to(device)
-                test_elbo, nlhood, kl_reg, kl_gp, Xrec_te, ztL_te = compute_loss(invodevae, test_batch, L)
+                test_elbo, nlhood, kl_reg, kl_gp, Xrec_te, ztL_te = compute_loss(invodevae, test_batch, L=1)
+                print()
                 Xrec_te = Xrec_te.squeeze(0) #N,T,d,nc,nc
                 test_mse = compute_MSE(test_batch, Xrec_te)
                 torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
                 mse_meter.update(test_mse.item(),itr_test)
                 break
-        logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))
-        plot_results(args, ztL_tr, Xrec_tr, minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+        logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))    
+    plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
 
 
 

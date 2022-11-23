@@ -2,3 +2,4 @@ data/rot_mnist/*.mat
 */__pycache__
 */*/__pycache__
 results
+test.ipynb

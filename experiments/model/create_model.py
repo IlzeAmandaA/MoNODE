@@ -4,10 +4,12 @@ import sys
 
 from model.core.svgp import SVGP_Layer
 from model.core.mlp import MLP
-from model.core.sgp import SGP
+from model.core.deepgp import DeepGP
 from model.core.flow import Flow
 from model.core.vae import VAE
 from model.core.invodevae import INVODEVAE
+
+from model.core.sgp import SGP
 
 
 
@@ -39,7 +41,10 @@ def build_model(args, device):
         sys.exit()
 
     #marginal invariance
-    gp = SGP(torch.randn(args.num_inducing_inv, args.D_out), args.D_out)
+ 
+ 
+    gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
+  #  gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
 
     #continous latent ode 
     flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
@@ -80,7 +85,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     if model.flow.odefunc.diffeq.type == 'SVGP':
         kl_u = model.flow.kl()
     else:
-        kl_u = 0.0
+        kl_u = torch.zeros(1).to(X.device)
 
     return lhood.mean(), kl_reg.mean(), kl_u 
 
