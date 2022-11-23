@@ -9,7 +9,7 @@ from model.core.flow import Flow
 from model.core.vae import VAE
 from model.core.invodevae import INVODEVAE
 
-from model.core.sgp import SGP
+#from model.core.sgp import SGP
 
 
 
