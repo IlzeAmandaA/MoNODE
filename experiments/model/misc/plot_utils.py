@@ -44,8 +44,10 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='rot_mnist_latents.png'): #T
         plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
         plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
     plt.tight_layout()
-    plt.savefig(fname)
-    if show is False:
+    if show:
+        plt.show()
+    else:
+        plt.savefig(fname)
         plt.close()
 
 def plot_trace(elbo_meter, nll_meter,  z_kl_meter, inducing_kl_meter, args, make_plot=False): 

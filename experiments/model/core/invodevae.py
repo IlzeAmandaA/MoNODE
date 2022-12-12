@@ -48,9 +48,8 @@ class INVODEVAE(nn.Module):
         
     def forward(self, X, L=1, T_custom=None):
         [N,T,nc,d,d] = X.shape
-
+        T_orig = T
         if T_custom:
-            T_orig = T
             T = T_custom
 
         #encode dynamics
@@ -63,8 +62,8 @@ class INVODEVAE(nn.Module):
             z0 = torch.concat([z0,v0],dim=1) #N, 2q
 
         #encode content (invariance)
-        qz_st = self.vae.encoder(X.reshape(N*T, nc,d,d), content=True) # NT,q
-        inv_z_st = self.gp(qz_st).rsample().reshape(N,T,-1).mean(1) #N,q
+        qz_st = self.vae.encoder(X.reshape(N*T_orig, nc,d,d), content=True) # NT,q
+        inv_z_st = self.gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
 
 
         #sample ODE trajectories 
