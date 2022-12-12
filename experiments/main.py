@@ -50,6 +50,8 @@ parser.add_argument('--variance', type=float, default=0.7,
                     help="Initial value for rbf variance")
 parser.add_argument('--lengthscale', type=float, default=2.0,
                     help="Initial value for rbf lengthscale")
+parser.add_argument('--q_diag', type=eval, default=False,
+                    help="Diagonal posterior approximation for inducing variables")
 
 #inavariance gp
 parser.add_argument('--num_inducing_inv', type=int, default=100,
