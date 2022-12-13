@@ -5,6 +5,10 @@ import argparse
 import torch
 import torch.nn as nn
 
+# 2168544, 2168604 - gp, euler
+# 2168567 - gp, dopri5
+# 2168606 - nn, euler
+
 from model.create_model import build_model, compute_loss, compute_MSE
 from model.create_plots import plot_results, plot_results_caca
 from model.misc import io_utils
@@ -66,7 +70,7 @@ parser.add_argument('--num_inducing_inv', type=int, default=100,
 #ode solver
 parser.add_argument('--ode', type=int, default=1,
                     help="order of ODE")
-parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
+parser.add_argument('--solver', type=str, default='dopri5', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--D_in', type=int, default=6,
                     help="ODE f(x) input dimensionality")
