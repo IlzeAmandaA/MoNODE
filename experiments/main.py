@@ -71,7 +71,7 @@ parser.add_argument('--num_inducing_inv', type=int, default=100,
 #ode solver
 parser.add_argument('--ode', type=int, default=1,
                     help="order of ODE")
-parser.add_argument('--solver', type=str, default='dopri5', choices=SOLVERS,
+parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--D_in', type=int, default=6,
                     help="ODE f(x) input dimensionality")
