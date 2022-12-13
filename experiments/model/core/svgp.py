@@ -214,12 +214,12 @@ class SVGP_Layer(torch.nn.Module):
         @return: m(x), Sigma(x)
         """
         Ku = self.kern.K(self.inducing_loc())  # (M,M) or (D,M,M)
-        Lu = torch.cholesky(Ku + torch.eye(self.M) * jitter)  # (M,M) or (D,M,M)
+        Lu = torch.cholesky(Ku + torch.eye(self.M, device=x.device) * jitter)  # (M,M) or (D,M,M)
         Kuf = self.kern.K(self.inducing_loc(), x)  # (M,N) or (D,M,N)
         A = torch.triangular_solve(Kuf, Lu, upper=False)[0]  # (M,M)@(M,N) --> (M,N) or (D,M,M)@(D,M,N) --> (D,M,N)
 
         Us_sqrt = self.Us_sqrt().T[:, :, None] if self.q_diag else self.Us_sqrt()  # (D,M,1) or (D,M,M)
-        SK = (Us_sqrt @ Us_sqrt.permute(0, 2, 1)) - torch.eye(Ku.shape[1]).unsqueeze(0)  # (D,M,M)
+        SK = (Us_sqrt @ Us_sqrt.permute(0, 2, 1)) - torch.eye(Ku.shape[1], device=x.device).unsqueeze(0)  # (D,M,M)
         B = torch.einsum('dme, den->dmn' if self.dimwise else 'dmi, in->dmn', SK, A)  # (D,M,N)
 
         if full_cov:

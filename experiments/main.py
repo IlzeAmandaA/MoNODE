@@ -10,6 +10,9 @@ import torch.nn as nn
 # 2168606 - nn, euler
 # 2168608 - nn, dopri5
 
+# 2168643 - inv, gp, euler
+# 2168644 - inv, nn, euler
+
 from model.create_model import build_model, compute_loss, compute_MSE
 from model.create_plots import plot_results, plot_results_caca
 from model.misc import io_utils
