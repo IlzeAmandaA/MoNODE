@@ -23,7 +23,7 @@ class INVODEVAE(nn.Module):
         Given a mean of the latent space decode the input back into the original space.
 
         @param ztL: latent variable (L,N,T,q)
-        @param inv_z: invaraiant latent variable (N,q)
+        @param inv_z: invaraiant latent variable (L,N,q)
         @param dims: dimensionality of the original variable 
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
@@ -35,7 +35,7 @@ class INVODEVAE(nn.Module):
             st_muL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
         if inv_z is not None:
-            inv_z_L = torch.stack([inv_z]*ztL.shape[2],1).repeat(L,1,1,1)
+            inv_z_L = torch.stack([inv_z]*ztL.shape[2],-2) # L,N,T,q
             st = torch.cat([st_muL, inv_z_L], -1) #L,N,T,2q
         else:
             st = st_muL
@@ -43,7 +43,7 @@ class INVODEVAE(nn.Module):
         Xrec = Xrec.view([L,N,T,nc,d,d]) # L,N,T,nc,d,d
         return Xrec
     
-    def sample_trajectories(self,z0, T,L=1):
+    def sample_trajectories(self, z0, T, L=1):
         ztL = []
         ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0.device)
         #sample L trajectories
@@ -54,6 +54,9 @@ class INVODEVAE(nn.Module):
         return ztL
 
     def forward(self, X, L=1, T_custom=None):
+        if self.is_inv:
+            self.inv_gp.build_cache()
+
         [N,T,nc,d,d] = X.shape
         T_orig = T
         if T_custom:
@@ -71,7 +74,10 @@ class INVODEVAE(nn.Module):
         #encode content (invariance)
         if self.is_inv:
             qz_st = self.vae.encoder(X.reshape(N*T_orig, nc,d,d), content=True) # NT,q
-            inv_z_st = self.inv_gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
+            # inv_z_st = self.inv_gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
+            mean,var = self.inv_gp.build_conditional(qz_st)
+            dist = torch.distributions.Normal(mean,var)
+            inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,T_orig,-1).mean(-2) # L,N,q
         else:
             inv_z_st = None
 

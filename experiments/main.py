@@ -8,6 +8,7 @@ import torch.nn as nn
 # 2168544, 2168604 - gp, euler
 # 2168567 - gp, dopri5
 # 2168606 - nn, euler
+# 2168608 - nn, dopri5
 
 from model.create_model import build_model, compute_loss, compute_MSE
 from model.create_plots import plot_results, plot_results_caca
@@ -40,7 +41,7 @@ parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -62,7 +63,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=10,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
