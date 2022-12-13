@@ -12,7 +12,7 @@ from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
 from model.misc.data_utils import load_data
 
-SOLVERS = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams"]
+SOLVERS = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
 KERNELS = ['RBF', 'DF']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
@@ -36,7 +36,7 @@ parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -60,7 +60,6 @@ parser.add_argument('--is_inv', type=eval, default=False,
                     help="invariant model or not")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
-
 
 #ode solver
 parser.add_argument('--ode', type=int, default=1,
@@ -212,14 +211,13 @@ if __name__ == '__main__':
             for itr_test,test_batch in enumerate(testset):
                 test_batch = test_batch.to(device)
                 test_elbo, nlhood, kl_reg, kl_gp, Xrec_te, ztL_te = compute_loss(invodevae, test_batch, L=1)
-                print()
                 Xrec_te = Xrec_te.squeeze(0) #N,T,d,nc,nc
                 test_mse = compute_MSE(test_batch, Xrec_te)
                 torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
                 mse_meter.update(test_mse.item(),itr_test)
                 break
         logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))    
-        if ep%args.plot_every==0:
+        if ep % args.plot_every==0:
             plot_results_caca(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:].squeeze(0), minibatch, ztL_te, \
                 Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
     # plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)

@@ -205,12 +205,10 @@ class SGP(ApproximateGP):
     def __call__(self,x):
         return self.drawn_func(x)
 
-    
     def forward(self, x):
-        # mean_x = self.mean_module(x)
-        # covar_x = self.covar_module(x)
-        # return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
-        return self.drawn_func(x)
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
     
     def kl(self):
         return self.variational_strategy.kl_divergence()
