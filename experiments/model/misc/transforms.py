@@ -56,16 +56,18 @@ class SoftPlus:
 
 
 class LowerTriangular:
-    def __init__(self, N, num_matrices=1, device='cpu'):
+    def __init__(self, N, num_matrices=1, device='cpu', dtype=torch.float32):
         self.N = N
         self.num_matrices = num_matrices  # We need to store this for reconstruction.
         self.device = device
+        self.dtype  = dtype
 
     def __str__(self):
         return 'Lower cholesky transformation'
 
     def forward(self, x):
-        fwd = np.zeros((self.num_matrices, self.N, self.N), dtype=settings.numpy_float)
+        fwd = torch.zeros(self.num_matrices, self.N, self.N, dtype=self.dtype).numpy()
+        # fwd = np.zeros((self.num_matrices, self.N, self.N), dtype=self.dtype)
         indices = np.tril_indices(self.N, 0)
         z = np.zeros(len(indices[0])).astype(int)
         for i in range(self.num_matrices):
@@ -77,7 +79,7 @@ class LowerTriangular:
         return np.vstack([y_i[ind] for y_i in y])
 
     def forward_tensor(self, x):
-        fwd = torch.zeros((self.num_matrices, self.N, self.N), dtype=settings.torch_float, device=self.device)
+        fwd = torch.zeros((self.num_matrices, self.N, self.N), device=self.device, dtype=self.dtype)
         indices = np.tril_indices(self.N, 0)
         z = np.zeros(len(indices[0])).astype(int)
         for i in range(self.num_matrices):
@@ -90,10 +92,12 @@ class LowerTriangular:
 
 
 class StackedLowerTriangular:
-    def __init__(self, N, num_n, num_m):
+    def __init__(self, N, num_n, num_m, device='cpu', dtype=torch.float32):
         self.N = N
         self.num_n = num_n  # We need to store this for reconstruction.
         self.num_m = num_m
+        self.device = device
+        self.dtype  = dtype
 
     def __str__(self):
         return 'Lower cholesky transformation for stack sequence of covariance matrices'
@@ -112,7 +116,7 @@ class StackedLowerTriangular:
         return np.stack([np.stack([y_i[ind] for y_i in y_j]) for y_j in y])
 
     def forward_tensor(self, x):
-        fwd = torch.zeros((self.num_n, self.num_m, self.N, self.N), dtype=settings.torch_float, device=settings.device)
+        fwd = torch.zeros((self.num_n, self.num_m, self.N, self.N), device=self.device, dtype=self.dtype)
         indices = np.tril_indices(self.N, 0)
         z = np.zeros(len(indices[0])).astype(int)
         for i in range(self.num_n):

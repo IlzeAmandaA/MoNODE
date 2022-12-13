@@ -123,7 +123,7 @@ class RBF(torch.nn.Module):
             1)  # (D_in,1,D_out) or (D_in,1)
         return omega / lengthscales  # (D_in, S, D_out) or (D_in, S)
 
-    def build_cache(self, S, device):
+    def build_cache(self, S, device, dtype):
         """
         Generate and fix parameters of Fourier features
         @param S: Number of features to consider for Fourier feature maps
@@ -131,10 +131,10 @@ class RBF(torch.nn.Module):
         Set w of w*phi(x) of prior update
         """
         # generate parameters required for the Fourier feature maps
-        self.rff_weights = sample_normal((S, self.D_out)).to(device)  # (S,D_out)
-        self.rff_omega = self.sample_freq(S, device=device)  # (D_in,S) or (D_in,S,D_out)
+        self.rff_weights = sample_normal((S, self.D_out)).to(device).to(dtype)  # (S,D_out)
+        self.rff_omega = self.sample_freq(S, device=device).to(dtype)  # (D_in,S) or (D_in,S,D_out)
         phase_shape = (1, S, self.D_out) if self.dimwise else (1, S)
-        self.rff_phase = sample_uniform(phase_shape).to(device) * 2 * np.pi  # (S,D_out)
+        self.rff_phase = sample_uniform(phase_shape).to(device).to(dtype) * 2 * np.pi  # (S,D_out)
 
 
     def rff_forward(self, x, S):

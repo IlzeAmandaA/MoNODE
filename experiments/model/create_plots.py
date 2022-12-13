@@ -15,6 +15,17 @@ def plot_results(args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, testset, elbo_m
     plot_trace(elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter, args) # logpL_meter, logztL_meter, args)
 
 
+def plot_results_caca(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
+    testset, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter):
+    #plot reconstructions (data space)
+
+    plotter.plot_fit(trainset, tr_rec, 'tr')
+    plotter.plot_fit(testset,  te_rec, 'test')
+
+    plotter.plot_latent(ztl_tr, 'tr')
+    plotter.plot_latent(ztl_te, 'test')
+
+    # plot_trace(elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter, args) # logpL_meter, logztL_meter, args)
 
 
 

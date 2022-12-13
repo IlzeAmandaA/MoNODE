@@ -44,7 +44,7 @@ class SVGP_Layer(torch.nn.Module):
                      }
     """
 
-    def __init__(self, D_in, D_out, M, S, q_diag=False, dimwise=True, device='cpu', kernel='RBF'):
+    def __init__(self, D_in, D_out, M, S, q_diag=False, dimwise=True, device='cpu', kernel='RBF', dtype=torch.float32):
         """
         @param D_in: Number of input dimensions 2q
         @param D_out: Number of output dimensions q
@@ -71,20 +71,23 @@ class SVGP_Layer(torch.nn.Module):
         self.M = M
         self.S = S
         self.device = device
+        self.dtype  = dtype
 
-        self.inducing_loc = Param(np.random.normal(size=(M, D_in)), name='Inducing locations',device=device)  # (M,D_in)
-        self.Um = Param(np.random.normal(size=(M, D_out)) * 1e-1, name='Inducing distribution (mean)',device=device)  # (M,D_out)
+        self.inducing_loc = Param(np.random.normal(size=(M, D_in)), name='Inducing locations',device=device, dtype=dtype)  # (M,D_in)
+        self.Um = Param(np.random.normal(size=(M, D_out)) * 1e-1, name='Inducing distribution (mean)',device=device, dtype=dtype)  # (M,D_out)
 
         if self.q_diag:
             self.Us_sqrt = Param(np.ones(shape=(M, D_out)) * 1e-3,  # (M,D_out)
                                  transform=transforms.SoftPlus(),
                                  name='Inducing distribution (scale)',
-                                 device=device)
+                                 device=device, 
+                                 dtype=dtype)
         else:
             self.Us_sqrt = Param(np.stack([np.eye(M)] * D_out) * 1e-3,  # (D_out,M,M)
-                                 transform=transforms.LowerTriangular(M, D_out, device=self.device),
+                                 transform=transforms.LowerTriangular(M, D_out, device=self.device,  dtype=self.dtype),
                                  name='Inducing distribution (scale)',
-                                 device=device)
+                                 device=device, 
+                                 dtype=dtype)
 
     @property
     def type(self):
@@ -115,7 +118,7 @@ class SVGP_Layer(torch.nn.Module):
         Generate a sample from the inducing posterior q(u) ~ N(m, S)
         @return: inducing sample (M,D) tensor
         """
-        epsilon = sample_normal(shape=(self.M, self.D_out), seed=None).to(self.device)  # (M, D_out)
+        epsilon = sample_normal(shape=(self.M, self.D_out), seed=None).to(self.device).to(self.dtype)  # (M, D_out)
         if self.q_diag:
             ZS = self.Us_sqrt() * epsilon  # (M, D_out)
         else:
@@ -132,7 +135,7 @@ class SVGP_Layer(torch.nn.Module):
         3. Intermediate computations based on the inducing sample for pathwise update
         """
         # generate parameters required for the Fourier feature maps
-        self.kern.build_cache(self.S, self.device)        
+        self.kern.build_cache(self.S, self.device, self.dtype)        
 
         # generate sample from the inducing posterior
         inducing_val = self.sample_inducing()  # (M,D_out)

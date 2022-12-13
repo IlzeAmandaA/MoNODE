@@ -3,18 +3,22 @@ import torch.nn as nn
 
 
 class INVODEVAE(nn.Module):
-    def __init__(self, flow,vae, gp, num_observations, order, steps, dt) -> None:
+    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_gp=None) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
         self.num_observations = num_observations
         self.vae = vae
-        self.gp = gp
+        self.inv_gp = inv_gp
         self.dt = dt
         self.v_steps = steps
         self.order = order
 
-    def build_decoding(self, inv_z, ztL, dims):
+    @property
+    def is_inv(self):
+        return self.inv_gp is not None
+
+    def build_decoding(self, ztL, dims, inv_z=None):
         """
         Given a mean of the latent space decode the input back into the original space.
 
@@ -30,7 +34,11 @@ class INVODEVAE(nn.Module):
             q = ztL.shape[-1]//2
             st_muL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
-        st = torch.cat([st_muL, torch.stack([inv_z]*ztL.shape[2],1).repeat(L,1,1,1)], -1) #L,N,T,2q
+        if inv_z is not None:
+            inv_z_L = torch.stack([inv_z]*ztL.shape[2],1).repeat(L,1,1,1)
+            st = torch.cat([st_muL, inv_z_L], -1) #L,N,T,2q
+        else:
+            st = st_muL
         Xrec = self.vae.decoder(st) # L*N*T,nc,d,d
         Xrec = Xrec.view([L,N,T,nc,d,d]) # L,N,T,nc,d,d
         return Xrec
@@ -62,14 +70,17 @@ class INVODEVAE(nn.Module):
             z0 = torch.concat([z0,v0],dim=1) #N, 2q
 
         #encode content (invariance)
-        qz_st = self.vae.encoder(X.reshape(N*T_orig, nc,d,d), content=True) # NT,q
-        inv_z_st = self.gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
+        if self.is_inv:
+            qz_st = self.vae.encoder(X.reshape(N*T_orig, nc,d,d), content=True) # NT,q
+            inv_z_st = self.inv_gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
+        else:
+            inv_z_st = None
 
 
         #sample ODE trajectories 
         ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q
 
         #decode
-        Xrec = self.build_decoding(inv_z_st, ztL, (L,N,T,nc,d,d))
+        Xrec = self.build_decoding(ztL, (L,N,T,nc,d,d), inv_z_st)
 
         return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)

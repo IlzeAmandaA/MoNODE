@@ -6,11 +6,11 @@ import torch
 import torch.nn as nn
 
 from model.create_model import build_model, compute_loss, compute_MSE
-from model.create_plots import plot_results
+from model.create_plots import plot_results, plot_results_caca
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
-from data.wrappers import load_data
+from model.misc.data_utils import load_data
 
 SOLVERS = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams"]
 DE_MODELS = ['MLP', 'SVGP']
@@ -36,7 +36,7 @@ parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -54,6 +54,10 @@ parser.add_argument('--q_diag', type=eval, default=False,
                     help="Diagonal posterior approximation for inducing variables")
 
 #inavariance gp
+parser.add_argument('--inv_latent_dim', type=int, default=0,
+                    help="Invariant space dimensionality")
+parser.add_argument('--is_inv', type=eval, default=False,
+                    help="invariant model or not")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 
@@ -73,8 +77,8 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--latent_dim', type=int, default=6,
-                    help="Latent space dimensionality")
+parser.add_argument('--ode_latent_dim', type=int, default=6,
+                    help="Latent ODE dimensionality")
 parser.add_argument('--n_filt', type=int, default=8,
                     help="Number of filters in the cnn")
 parser.add_argument('--frames', type=int, default=5,
@@ -89,6 +93,8 @@ parser.add_argument('--seed', type=int, default=121,
                     help="Global seed for the training run")
 parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
+parser.add_argument('--plot_every', type=int, default=100,
+                    help="How often plot the training")
 
 
 #log 
@@ -98,12 +104,29 @@ parser.add_argument('--log_freq', type=int, default=5,
                     help="Logging frequency while training")
 
 
+def running_on_tuebingen_server():
+    return 'cyildiz40' in os.getcwd()
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
 
     ######### setup output directory and logger ###########
-    args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save+args.task+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
+    if running_on_tuebingen_server():
+        from pathlib import Path
+        path = 'figs'
+        try:
+            p1 = os.environ['SLURM_ARRAY_JOB_ID']
+            p2 = os.environ['SLURM_ARRAY_TASK_ID']
+            path = os.path.join(path, p1, p2)
+        except:
+            p1 = os.environ['SLURM_JOB_ID']
+            path = os.path.join(path,p1)
+        Path(path).mkdir(parents=True, exist_ok=True)
+        args.save = path
+    else:
+        args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
+            args.save+args.task+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
     io_utils.makedirs(args.save)
     io_utils.makedirs(os.path.join(args.save, 'plots'))
     logger = io_utils.get_logger(logpath=os.path.join(args.save, 'logs'))
@@ -112,23 +135,35 @@ if __name__ == '__main__':
     ########## set global random seed ###########
     seed_everything(args.seed)
 
+    ########## dtype #########
+    dtype = torch.float64
+    logger.info('Float type is {}'.format(dtype))
+
+    ########## plotter #######
+    from model.misc.plot_utils import Plotter
+    save_path = os.path.join(args.save, 'plots')
+    plotter = Plotter(save_path, args.task)
+
     ########### device #######
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info('Running model on {}'.format(device))
 
     ########### data ############ 
-    trainset, testset = load_data(args, device)
+    trainset, testset = load_data(args, device, dtype)
 
     ########### model ###########
-    invodevae = build_model(args, device)
+    invodevae = build_model(args, device, dtype)
     invodevae.to(device)
+    invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | ode {} | D_in {} | D_out {} | dt {} | kernel {} | latent_dim {} | variance {} |lengthscale {} | rotated initial angle {}'.format(
-                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.ode, args.D_in, args.D_out, args.dt, args.kernel, args.latent_dim, args.variance, args.lengthscale, args.rotrand))
+    logger.info('Experiment parameters: invariant model {}'.format(
+                    args.is_inv))
+    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | ode {} | D_in {} | D_out {} | dt {} | kernel {} | ODE latent_dim {} | variance {} |lengthscale {} | rotated initial angle {}'.format(
+                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.ode, args.D_in, args.D_out, args.dt, args.kernel, args.ode_latent_dim, args.variance, args.lengthscale, args.rotrand))
 
     if args.continue_training:
-        fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.model_path, 'odegpvae_mnist.pth')
+        fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('Resume training for model {}'.format(fname))
 
@@ -185,7 +220,10 @@ if __name__ == '__main__':
                 mse_meter.update(test_mse.item(),itr_test)
                 break
         logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))    
-    plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+        if ep%args.plot_every==0:
+            plot_results_caca(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:].squeeze(0), minibatch, ztL_te, \
+                Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+    # plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
 
 
 

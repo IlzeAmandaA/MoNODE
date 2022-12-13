@@ -9,11 +9,11 @@ from model.core.flow import Flow
 from model.core.vae import VAE
 from model.core.invodevae import INVODEVAE
 
-#from model.core.sgp import SGP
+from model.core.sgp import SGP
 
 
 
-def build_model(args, device):
+def build_model(args, device, dtype):
     """
     Builds a model object of odevaegp.ODEVAEGP based on training sequence
 
@@ -28,7 +28,8 @@ def build_model(args, device):
                         S=args.num_features,
                         dimwise=args.dimwise,
                         q_diag=args.q_diag,
-                        device= device,
+                        device=device,
+                        dtype=dtype,
                         kernel = args.kernel)
 
         de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
@@ -42,27 +43,23 @@ def build_model(args, device):
 
     #marginal invariance
  
- 
-    # gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
-    # gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
-    gp = SVGP_Layer(D_in=args.D_out, D_out=args.D_out, #2q, q
-                        M=args.num_inducing_inv,
-                        S=args.num_features,
-                        dimwise=args.dimwise,
-                        q_diag=args.q_diag,
-                        device= device,
-                        kernel = args.kernel)
+    if args.inv_latent_dim>0:
+        # gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
+        inv_gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
+    else:
+        inv_gp = None
 
     #continous latent ode 
     flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
 
     #encoder & decoder
-    vae = VAE(frames = args.frames, n_filt=args.n_filt, latent_dim=args.latent_dim ,order= args.ode, device=device)
+    vae = VAE(frames = args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
+        inv_latent_dim=args.inv_latent_dim, order= args.ode, device=device).to(dtype)
 
     #full model
     inodevae = INVODEVAE(flow=flow,
                         vae= vae,
-                        gp = gp,
+                        inv_gp = inv_gp,
                         num_observations= args.Ntrain,
                         order = args.ode,
                         steps=args.frames,
@@ -90,11 +87,16 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
 
     # KL inudcing 
     if model.flow.odefunc.diffeq.type == 'SVGP':
-        kl_u = model.flow.kl()
+        kl_gp = model.flow.kl()
     else:
-        kl_u = torch.zeros(1).to(X.device)
+        kl_gp = 0.0 * torch.zeros(1).to(X.device)
 
-    return lhood.mean(), kl_reg.mean(), kl_u 
+    if model.inv_gp is not None:
+        kl_gp_2 = model.inv_gp.kl() + kl_gp
+    else:
+        kl_gp_2 = kl_gp
+
+    return lhood.mean(), kl_reg.mean(), kl_gp_2 
 
 
 def compute_loss(model, data, L):
@@ -108,8 +110,8 @@ def compute_loss(model, data, L):
     """
     Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv) = model(data,L)
     lhood, kl_reg, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
-    loss = - (lhood * model.num_observations - kl_reg * model.num_observations - kl_gp)
-    return loss, -lhood, kl_reg, kl_gp, Xrec, ztL
+    loss = - (lhood - kl_reg) * model.num_observations + kl_gp
+    return loss, -lhood, kl_reg, kl_gp, Xrec, ztL  
 
 def compute_MSE(X, Xrec):
     assert list(X.shape) == list(Xrec.shape), f'incorrect shapes X: {list(X.shape)}, X_Rec: {list(Xrec.shape)}'

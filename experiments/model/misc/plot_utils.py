@@ -2,6 +2,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import os
+from pathlib import Path
+
+class Plotter:
+	def __init__(self, root, task_name):
+		self.task_name    = task_name
+		self.path_prefix  = root
+		if self.task_name=='rot_mnist':
+			self.plot_fit_fnc    = plot_rot_mnist
+		self.plot_latent_fnc = plot_latent_traj
+
+	def plot_fit(self, X, Xrec, fname=''):
+		fname = self.task_name + '_fit_' + fname + '.png'
+		fname = os.path.join(self.path_prefix, fname)
+		self.plot_fit_fnc(X, Xrec, fname=fname)
+
+	def plot_latent(self, z, fname=''):
+		fname = self.task_name + '_latents_' + fname + '.png'
+		fname = os.path.join(self.path_prefix, fname)
+		self.plot_latent_fnc(z, fname=fname)
 
 def plot_rot_mnist(X, Xrec, show=False, fname='rot_mnist.png', N=None):
     if N is None:

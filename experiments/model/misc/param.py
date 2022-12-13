@@ -11,13 +11,13 @@ class Param(torch.nn.Module):
 
     """
 
-    def __init__(self, value, transform=transforms.Identity(), name='var', device='cpu'):
+    def __init__(self, value, transform=transforms.Identity(), name='var', device='cpu', dtype=torch.float32):
         super(Param, self).__init__()
         self.transform = transform
         self.name = name
         value_ = self.transform.backward(value)
         self.optvar = torch.nn.Parameter(torch.tensor(data=value_,
-                                                      dtype=torch.float32,
+                                                      dtype=dtype,
                                                       device=device)) #to(settings.device)
 
     def __call__(self):

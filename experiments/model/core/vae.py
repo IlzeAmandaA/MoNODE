@@ -8,24 +8,24 @@ import numpy as np
 EPSILON = 1e-3
 
 class VAE(nn.Module):
-    def __init__(self, frames = 1, n_filt=8, latent_dim=8, device='cpu', order=1, distribution='bernoulli'):
+    def __init__(self, frames = 1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
         super(VAE, self).__init__()
 
 
-        self.encoder = Encoder(latent_dim, n_filt).to(device)
-        self.decoder = Decoder(latent_dim,  n_filt, distribution).to(device)
-        self.prior =  Normal(torch.zeros(latent_dim).to(device), torch.ones(latent_dim).to(device))
+        self.encoder = Encoder(ode_latent_dim, n_filt).to(device)
+        self.decoder = Decoder(ode_latent_dim, inv_latent_dim,  n_filt, distribution).to(device)
+        self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         if order==2:
-            self.encoder_v = Encoder(latent_dim,  n_filt, frames).to(device)
-            self.prior = Normal(torch.zeros(latent_dim*2).to(device), torch.ones(latent_dim*2).to(device))
+            self.encoder_v = Encoder(ode_latent_dim,  n_filt, frames).to(device)
+            self.prior = Normal(torch.zeros(ode_latent_dim*2).to(device), torch.ones(ode_latent_dim*2).to(device))
         
-        self.latent_dim = latent_dim
+        self.ode_latent_dim = ode_latent_dim
         self.order = order
 
     def print_summary(self):
         """Print the summary of both the models: encoder and decoder"""
         summary(self.encoder, (1, *(28,28)))
-        summary(self.decoder, (1, self.latent_dim))
+        summary(self.decoder, (1, self.ode_latent_dim))
         if self.order==2:
             summary(self.encoder_v, (1,*(28,28)))
 
@@ -45,7 +45,7 @@ class VAE(nn.Module):
         return y
 
 class Encoder(nn.Module):
-    def __init__(self,  latent_dim=16, n_filt=8,frames=1):
+    def __init__(self,  ode_latent_dim=16, n_filt=8,frames=1):
         super(Encoder, self).__init__()
 
         in_features = n_filt*4**3 # encoder output is [4*n_filt,4,4]
@@ -63,9 +63,9 @@ class Encoder(nn.Module):
         )
 
 
-        self.fc1 = nn.Linear(in_features,latent_dim)
-        self.fc2 = nn.Linear(in_features, latent_dim)
-        self.fc3 = nn.Linear(in_features, latent_dim)
+        self.fc1 = nn.Linear(in_features, ode_latent_dim)
+        self.fc2 = nn.Linear(in_features, ode_latent_dim)
+        self.fc3 = nn.Linear(in_features, ode_latent_dim)
 
         self.sp = nn.Softplus()
 
@@ -105,13 +105,13 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim=16,n_filt=8, distribution='bernoulli'):
+    def __init__(self, ode_latent_dim=16, inv_latent_dim=16, n_filt=8, distribution='bernoulli'):
         super(Decoder, self).__init__()
 
         self.distribution = distribution
 
         h_dim = n_filt*4**3 # encoder output is [4*n_filt,4,4]
-        self.fc = nn.Linear(latent_dim+latent_dim, h_dim)
+        self.fc = nn.Linear(ode_latent_dim+inv_latent_dim, h_dim)
 
         self.decnn = nn.Sequential(
             UnFlatten(4),
