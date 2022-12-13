@@ -12,9 +12,9 @@ from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
 from model.misc.data_utils import load_data
 
-SOLVERS = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
+SOLVERS   = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
-KERNELS = ['RBF', 'DF']
+KERNELS   = ['RBF', 'DF']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 #data
@@ -36,7 +36,7 @@ parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='SGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -64,7 +64,7 @@ parser.add_argument('--num_inducing_inv', type=int, default=100,
 #ode solver
 parser.add_argument('--ode', type=int, default=1,
                     help="order of ODE")
-parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
+parser.add_argument('--solver', type=str, default='dopri5', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--D_in', type=int, default=6,
                     help="ODE f(x) input dimensionality")
@@ -99,19 +99,14 @@ parser.add_argument('--plot_every', type=int, default=100,
 #log 
 parser.add_argument('--save', type=str, default='results/',
                     help="Directory name for saving all the model outputs")
-parser.add_argument('--log_freq', type=int, default=5,
-                    help="Logging frequency while training")
-
-
-def running_on_tuebingen_server():
-    return 'cyildiz40' in os.getcwd()
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
 
     ######### setup output directory and logger ###########
-    if running_on_tuebingen_server():
+    # if running in the cluster in Tuebingen
+    if 'cyildiz40' in os.getcwd():
         from pathlib import Path
         path = 'figs'
         try:
@@ -183,8 +178,8 @@ if __name__ == '__main__':
     for ep in range(args.Nepoch):
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
-            minibatch = local_batch.to(device) # B x T x 1 x 28 x 28 (batch, time, image dim)
-            loss, nlhood, kl_reg, kl_u, Xrec_tr, ztL_tr = compute_loss(invodevae, minibatch, L)
+            tr_minibatch = local_batch.to(device) # B x T x 1 x 28 x 28 (batch, time, image dim)
+            loss, nlhood, kl_reg, kl_u, Xrec_tr, ztL_tr = compute_loss(invodevae, tr_minibatch, L)
 
             optimizer.zero_grad()
             loss.backward() 
@@ -198,14 +193,6 @@ if __name__ == '__main__':
             time_meter.update(time.time() - begin, global_itr)
             global_itr +=1
 
-            # if itr % args.log_freq == 0 :
-            #     logger.info('Iter:{:<2d} | Time {} | elbo {:8.2f}({:8.2f}) | nlhood:{:8.2f}({:8.2f}) | kl_reg:{:<8.2f}({:<8.2f}) | kl_u:{:8.5f}({:8.5f})'.\
-            #         format(itr, timedelta(seconds=time_meter.val), 
-            #                     elbo_meter.val, elbo_meter.avg,
-            #                     nll_meter.val, nll_meter.avg,
-            #                     reg_kl_meter.val, reg_kl_meter.avg,
-            #                     inducing_kl_meter.val, inducing_kl_meter.avg)) 
-            
         with torch.no_grad():
             mse_meter.reset()
             for itr_test,test_batch in enumerate(testset):
@@ -215,12 +202,15 @@ if __name__ == '__main__':
                 test_mse = compute_MSE(test_batch, Xrec_te)
                 torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
                 mse_meter.update(test_mse.item(),itr_test)
-                break
-        logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))    
-        if ep % args.plot_every==0:
-            plot_results_caca(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:].squeeze(0), minibatch, ztL_te, \
-                Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
-    # plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+            logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))   
+
+            if ep % args.plot_every==0:
+                Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=1, T_custom=2*tr_minibatch.shape[1])
+                Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=1, T_custom=2*test_batch.shape[1])
+
+                plot_results_caca(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:], tr_minibatch, ztL_te[0,:,:,:], \
+                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+    # plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), tr_minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
 
 
 
