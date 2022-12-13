@@ -74,8 +74,14 @@ class Flow(nn.Module):
         @return: zt, logp: (N,T,2q) tensor, (N,T) tensor
         """
         odeint = odeint_adjoint if self.use_adjoint else odeint_nonadjoint
-        if self.odefunc.diffeq.type == 'SVGP':
+        if self.odefunc.diffeq.type == 'SVGP' :
             self.odefunc.before_odeint(rebuild_cache=True)
+            odef = self.odefunc
+
+        elif self.odefunc.diffeq.type == 'SGP':
+            self.odefunc.before_odeint(rebuild_cache=True)
+            self.odefunc.diffeq.fix_gpytorch_cache(0)
+            self.odefunc.diffeq.draw_posterior_function()
             
         zt = odeint(
             self.odefunc,

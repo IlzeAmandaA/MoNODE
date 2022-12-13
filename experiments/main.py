@@ -13,7 +13,7 @@ from model.misc import log_utils
 from model.misc.data_utils import load_data
 
 SOLVERS = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams"]
-DE_MODELS = ['MLP', 'SVGP']
+DE_MODELS = ['MLP', 'SVGP', 'SGP']
 KERNELS = ['RBF', 'DF']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     ########## plotter #######
     from model.misc.plot_utils import Plotter
     save_path = os.path.join(args.save, 'plots')
-    plotter = Plotter(save_path, args.task)
+    plotter   = Plotter(save_path, args.task)
 
     ########### device #######
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -178,7 +178,6 @@ if __name__ == '__main__':
     ########### train ###########
     optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
 
-
     logger.info('********** Started Training **********')
     begin = time.time()
     global_itr = 0
@@ -200,13 +199,13 @@ if __name__ == '__main__':
             time_meter.update(time.time() - begin, global_itr)
             global_itr +=1
 
-            if itr % args.log_freq == 0 :
-                logger.info('Iter:{:<2d} | Time {} | elbo {:8.2f}({:8.2f}) | nlhood:{:8.2f}({:8.2f}) | kl_reg:{:<8.2f}({:<8.2f}) | kl_u:{:8.5f}({:8.5f})'.\
-                    format(itr, timedelta(seconds=time_meter.val), 
-                                elbo_meter.val, elbo_meter.avg,
-                                nll_meter.val, nll_meter.avg,
-                                reg_kl_meter.val, reg_kl_meter.avg,
-                                inducing_kl_meter.val, inducing_kl_meter.avg)) 
+            # if itr % args.log_freq == 0 :
+            #     logger.info('Iter:{:<2d} | Time {} | elbo {:8.2f}({:8.2f}) | nlhood:{:8.2f}({:8.2f}) | kl_reg:{:<8.2f}({:<8.2f}) | kl_u:{:8.5f}({:8.5f})'.\
+            #         format(itr, timedelta(seconds=time_meter.val), 
+            #                     elbo_meter.val, elbo_meter.avg,
+            #                     nll_meter.val, nll_meter.avg,
+            #                     reg_kl_meter.val, reg_kl_meter.avg,
+            #                     inducing_kl_meter.val, inducing_kl_meter.avg)) 
             
         with torch.no_grad():
             mse_meter.reset()

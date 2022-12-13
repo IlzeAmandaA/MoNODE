@@ -37,6 +37,12 @@ def build_model(args, device, dtype):
     elif args.de == 'MLP':
         de = MLP(args.D_in, args.D_out, L=2, H=100, act='relu') #TODO add as parser args
     
+    elif args.de == 'SGP':
+        Z = torch.randn(args.num_inducing, args.D_in)
+        u_var = 'diag' if args.q_diag else 'chol'
+        de = SGP(Z, args.D_out, kernel=args.kernel, whitened=True, u_var=u_var)
+        de = de.to(device).to(dtype)
+
     else:
         print('Invalid Differential Euqation model specified')
         sys.exit()
