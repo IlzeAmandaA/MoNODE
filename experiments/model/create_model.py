@@ -23,7 +23,8 @@ def build_model(args, device, dtype):
 
     #differential function
     if args.de == 'SVGP':
-        de = SVGP_Layer(D_in=args.D_in, D_out=args.D_out, #2q, q
+        de = SVGP_Layer(D_in=args.D_in, 
+                        D_out=args.D_out, #2q, q
                         M=args.num_inducing,
                         S=args.num_features,
                         dimwise=args.dimwise,
@@ -35,7 +36,7 @@ def build_model(args, device, dtype):
         de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
     
     elif args.de == 'MLP':
-        de = MLP(args.D_in, args.D_out, L=2, H=100, act='relu') #TODO add as parser args
+        de = MLP(args.D_in, args.D_out, L=args.num_layers, H=args.num_hidden, act='softplus') #TODO add as parser args
     
     elif args.de == 'SGP':
         Z = torch.randn(args.num_inducing, args.D_in)
@@ -51,7 +52,16 @@ def build_model(args, device, dtype):
  
     if args.inv_latent_dim>0:
         # gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
-        inv_gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
+        inv_gp = SVGP_Layer(D_in=args.inv_latent_dim, 
+                    D_out=args.inv_latent_dim, #2q, q
+                    M=args.num_inducing_inv,
+                    S=args.num_features,
+                    dimwise=args.dimwise,
+                    q_diag=args.q_diag,
+                    device=device,
+                    dtype=dtype,
+                    kernel = args.kernel)
+
     else:
         inv_gp = None
 
@@ -63,12 +73,12 @@ def build_model(args, device, dtype):
         inv_latent_dim=args.inv_latent_dim, order= args.ode, device=device).to(dtype)
 
     #full model
-    inodevae = INVODEVAE(flow=flow,
-                        vae= vae,
+    inodevae = INVODEVAE(flow = flow,
+                        vae = vae,
                         inv_gp = inv_gp,
-                        num_observations= args.Ntrain,
+                        num_observations = args.Ntrain,
                         order = args.ode,
-                        steps=args.frames,
+                        steps = args.frames,
                         dt = args.dt)
 
     return inodevae

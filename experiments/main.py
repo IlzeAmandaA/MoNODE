@@ -12,7 +12,7 @@ from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
 from model.misc.data_utils import load_data
 
-SOLVERS   = ["dopri5", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
+SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
 KERNELS   = ['RBF', 'DF']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
@@ -36,7 +36,7 @@ parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -52,19 +52,21 @@ parser.add_argument('--lengthscale', type=float, default=2.0,
                     help="Initial value for rbf lengthscale")
 parser.add_argument('--q_diag', type=eval, default=False,
                     help="Diagonal posterior approximation for inducing variables")
+parser.add_argument('--num_layers', type=int, default=2,
+                    help="Number of hidden layers in MLP diff func")
+parser.add_argument('--num_hidden', type=int, default=200,
+                    help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
 parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
-parser.add_argument('--is_inv', type=eval, default=False,
-                    help="invariant model or not")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 
 #ode solver
 parser.add_argument('--ode', type=int, default=1,
                     help="order of ODE")
-parser.add_argument('--solver', type=str, default='dopri5', choices=SOLVERS,
+parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--D_in', type=int, default=6,
                     help="ODE f(x) input dimensionality")
@@ -151,11 +153,9 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    logger.info('Experiment parameters: invariant model {}'.format(
-                    args.is_inv))
-    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | ode {} | D_in {} | D_out {} | dt {} | kernel {} | ODE latent_dim {} | variance {} |lengthscale {} | rotated initial angle {}'.format(
-                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.ode, args.D_in, args.D_out, args.dt, args.kernel, args.ode_latent_dim, args.variance, args.lengthscale, args.rotrand))
-
+    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | ode {} | D_in {} | D_out {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}'.format(
+                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.ode, args.D_in, args.D_out, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand))
+    logger.info(invodevae)
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))

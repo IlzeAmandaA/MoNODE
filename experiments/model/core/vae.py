@@ -11,8 +11,7 @@ class VAE(nn.Module):
     def __init__(self, frames = 1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
         super(VAE, self).__init__()
 
-
-        self.encoder = Encoder(ode_latent_dim, n_filt).to(device)
+        self.encoder = Encoder(ode_latent_dim, inv_latent_dim,  n_filt).to(device)
         self.decoder = Decoder(ode_latent_dim, inv_latent_dim,  n_filt, distribution).to(device)
         self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         if order==2:
@@ -45,7 +44,7 @@ class VAE(nn.Module):
         return y
 
 class Encoder(nn.Module):
-    def __init__(self,  ode_latent_dim=16, n_filt=8,frames=1):
+    def __init__(self,  ode_latent_dim=16, inv_latent_dim=0, n_filt=8,frames=1):
         super(Encoder, self).__init__()
 
         in_features = n_filt*4**3 # encoder output is [4*n_filt,4,4]
@@ -65,7 +64,7 @@ class Encoder(nn.Module):
 
         self.fc1 = nn.Linear(in_features, ode_latent_dim)
         self.fc2 = nn.Linear(in_features, ode_latent_dim)
-        self.fc3 = nn.Linear(in_features, ode_latent_dim)
+        self.fc3 = nn.Linear(in_features, inv_latent_dim)
 
         self.sp = nn.Softplus()
 

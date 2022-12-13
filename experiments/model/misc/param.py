@@ -24,4 +24,4 @@ class Param(torch.nn.Module):
         return self.transform.forward_tensor(self.optvar)
 
     def __repr__(self):
-        return '{} parameter with {}'.format(self.name, self.transform.__str__())
+        return '{} parameter with shape {} and {}'.format(self.name, list(self.optvar.shape), self.transform.__str__())
