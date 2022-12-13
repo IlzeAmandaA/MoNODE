@@ -43,8 +43,15 @@ def build_model(args, device):
     #marginal invariance
  
  
-    gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
-  #  gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
+    # gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
+    # gp  = SGP(torch.randn(args.num_inducing_inv,args.D_out), args.D_out)
+    gp = SVGP_Layer(D_in=args.D_out, D_out=args.D_out, #2q, q
+                        M=args.num_inducing_inv,
+                        S=args.num_features,
+                        dimwise=args.dimwise,
+                        q_diag=args.q_diag,
+                        device= device,
+                        kernel = args.kernel)
 
     #continous latent ode 
     flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
