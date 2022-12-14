@@ -1,10 +1,6 @@
-data/rot_mnist/*.mat
-*/__pycache__
-*/*/__pycache__
-results
-*.ipynb
-
+results/*
 *.DS_Store
+.DS_Store
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -182,6 +178,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-
-
