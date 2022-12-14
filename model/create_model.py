@@ -164,7 +164,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
 
     #Reconstruction log-likelihood
     lhood = model.vae.decoder.log_prob(X,Xrec,L) #L,N,T,d,nc,nc
-    idx   = list(np.arange(X.ndim)) # 0,1,2,...
+    idx   = list(np.arange(X.ndim+1)) # 0,1,2,...
     lhood = lhood.sum(idx[2:]).mean(0) #N
 
     # KL inudcing 

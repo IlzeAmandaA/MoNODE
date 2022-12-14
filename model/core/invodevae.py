@@ -27,7 +27,6 @@ class INVODEVAE(nn.Module):
         @param dims: dimensionality of the original variable 
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
-        L,N,T,nc,d,d = dims
         if self.order == 1:
             st_muL = ztL
         elif self.order == 2:
@@ -39,8 +38,7 @@ class INVODEVAE(nn.Module):
             st = torch.cat([st_muL, inv_z_L], -1) #L,N,T,2q
         else:
             st = st_muL
-        Xrec = self.vae.decoder(st) # L*N*T,nc,d,d
-        Xrec = Xrec.view([L,N,T,nc,d,d]) # L,N,T,nc,d,d
+        Xrec = self.vae.decoder(st, dims) # L,N,T,...
         return Xrec
     
     def sample_trajectories(self, z0, T, L=1):
@@ -85,6 +83,8 @@ class INVODEVAE(nn.Module):
         ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q
 
         #decode
-        Xrec = self.build_decoding(ztL, (L,N,T,nc,d,d), inv_z_st)
+        N = X.shape[0]
+        out_dims = [L,N,T,*X.shape[2:]]
+        Xrec = self.build_decoding(ztL, out_dims, inv_z_st)
 
         return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)

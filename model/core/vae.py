@@ -4,6 +4,7 @@ from torch.distributions import Normal
 from torchsummary import summary
 from model.misc.torch_utils import Flatten, UnFlatten
 from model.core.gru_encoder import GRUEncoder
+from model.core.mlp import MLP
 import numpy as np
 
 EPSILON = 1e-5
@@ -85,28 +86,32 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
+    def __init__(self, task, frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
         ### build encoder
         if task=='rot_mnist' or task=='mov_mnist':
+            lhood_distribution = 'bernoulli'
             self.encoder = CNNEncoder(task, 'normal', ode_latent_dim//order, n_filt).to(device)
+            self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt, lhood_distribution).to(device)
             if inv_latent_dim>0:
                 self.inv_encoder = CNNEncoder(task, 'dirac', inv_latent_dim, n_filt).to(device)
             if order==2:
                 self.encoder_v   = CNNEncoder(task, 'normal', ode_latent_dim//order, n_filt, frames).to(device)
-        else:
-            self.encoder = RNNEncoder('normal', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+            
+
+        elif task=='sin':
+            lhood_distribution = 'normal'
+            data_dim = 1
+            self.encoder = RNNEncoder(data_dim, enc_out_dim=16, out_distr='normal').to(device)
+            self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt, lhood_distribution, data_dim).to(device)
             if inv_latent_dim>0:
-                self.inv_encoder = RNNEncoder('dirac', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+                self.inv_encoder = RNNEncoder(data_dim, enc_out_dim=16, out_distr='dirac').to(device)
             if order==2:
-                self.encoder_v   = RNNEncoder('normal', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+                self.encoder_v   = RNNEncoder(data_dim, enc_out_dim=16, out_distr='normal').to(device)
 
-        ### build decoder
-        self.decoder = Decoder(task, ode_latent_dim//order+ inv_latent_dim, n_filt, distribution).to(device)
-
-        self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
+        self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         
         self.ode_latent_dim = ode_latent_dim
         self.order = order
@@ -200,40 +205,41 @@ class RNNEncoder(AbstractEncoder):
             return z0
 
 
-
 class Decoder(nn.Module):
-    def __init__(self, task, dec_inp_dim, n_filt=8, distribution='bernoulli'):
+    def __init__(self, task, dec_inp_dim, n_filt=8, distribution='bernoulli', dec_out_dim=None):
         super(Decoder, self).__init__()
         self.distribution = distribution
         if task=='rot_mnist':
-            self.fc_cnn = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
+            self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='mov_mnist':
-            self.fc_cnn = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
+            self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
+        elif task=='sin':
+            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=100, act='relu')
         else:
-            raise ValueError(f'Unknown task {task}')
+            raise ValueError('Unknown task {task}')
 
-    def forward(self, x):
+    def forward(self, z, dims):
         #L,N,T,q = x.shape
         #s = self.fc(x.contiguous().view([L*N*T,q]) ) # N*T,q
-        inp = x.contiguous().view([np.prod(list(x.shape[:-1])),x.shape[-1]])     
-        return self.fc_cnn(inp)
+        inp  = z.contiguous().view([np.prod(list(z.shape[:-1])),z.shape[-1]])  # L*N*T,q   
+        Xrec = self.net(inp)
+        return Xrec.view(dims) # L,N,T,...
     
     @property
     def device(self):
         return next(self.parameters()).device
 
-
-    def log_prob(self, x,z, L=1):
+    def log_prob(self, X, Xhat, L=1):
         '''
         x           - input images [N,T,1,nc,nc]
         z           - reconstructions [L,N,T,1,nc,nc]
         '''
-        XL = x.repeat([L,1,1,1,1,1]) # L,N,T,nc,d,d 
+        XL = X.repeat([L,1,1,1,1,1]) # L,N,T,nc,d,d 
         if self.distribution == 'bernoulli':
             try:
-                log_p = torch.log(z)*XL + torch.log(1-z)*(1-XL) # L,N,T,nc,d,d
+                log_p = torch.log(Xhat)*XL + torch.log(1-Xhat)*(1-XL) # L,N,T,nc,d,d
             except:
-                log_p = torch.log(EPSILON+z)*XL + torch.log(EPSILON+1-z)*(1-XL) # L,N,T,nc,d,d
+                log_p = torch.log(EPSILON+Xhat)*XL + torch.log(EPSILON+1-Xhat)*(1-XL) # L,N,T,nc,d,d
         else:
             raise ValueError('Currently only bernoulli dist implemented')
 

@@ -11,7 +11,7 @@ def load_data(args, device, dtype):
 		trainset, testset = load_rot_mnist_data(args, device, dtype)
 	elif args.task=='mov_mnist':
 		trainset, testset = load_mov_mnist_data(args, device, dtype)
-	elif args.task=='mov_mnist':
+	elif args.task=='sin':
 		trainset, testset = load_sin_data(args, device, dtype)
 	else:
 		return ValueError(r'Invalid task {arg.task}')
@@ -83,9 +83,13 @@ def load_sin_data(args, device, dtype):
 	try:
 		X = torch.load(data_path)
 	except:
-		gen_sin_data(data_path, args.Ntrain, args.Nvalid )
+		gen_sin_data(data_path, args.Ntrain, args.Nvalid)
 		X = torch.load(data_path)
-	X = X.to(device).to(dtype)
+	try:
+		X = X.to(device).to(dtype)
+	except:
+		X = X[0].to(device).to(dtype)
+		torch.save(X,data_path)
 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
 
 def gen_sin_data(data_path, Ntr, Ntest, T=100, dt=0.1, sig=.1): 
