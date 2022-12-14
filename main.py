@@ -23,11 +23,11 @@ from model.misc.plot_utils import plot_results
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
 KERNELS   = ['RBF', 'DF']
-TASKS    = ['rot_mnist', 'mov_mnist', 'sin']
+TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 #data
-parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
+parser.add_argument('--task', type=str, default='sin', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
@@ -41,6 +41,8 @@ parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
 parser.add_argument('--batch_size', type=int, default=20,
                     help="batch size")
+parser.add_argument('--digit', type=int, default=3,
+                    help="Rotating MNIST digit (train data)")
 
 #de model
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,

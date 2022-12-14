@@ -3,9 +3,10 @@ import torch.nn as nn
 from torch.distributions import Normal
 from torchsummary import summary
 from model.misc.torch_utils import Flatten, UnFlatten
+from model.core.gru_encoder import GRUEncoder
 import numpy as np
 
-EPSILON = 1e-3
+EPSILON = 1e-5
 
 def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
     cnn =   nn.Sequential(
@@ -83,18 +84,29 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
     return cnn
 
 
-
-
-
 class VAE(nn.Module):
     def __init__(self, task, frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
         super(VAE, self).__init__()
 
-        self.encoder = Encoder(task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+        # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
+        ### build encoder
+        if task=='rot_mnist' or task=='mov_mnist':
+            self.encoder = CNNEncoder(task, 'normal', ode_latent_dim//order, n_filt).to(device)
+            if inv_latent_dim>0:
+                self.inv_encoder = CNNEncoder(task, 'dirac', inv_latent_dim, n_filt).to(device)
+            if order==2:
+                self.encoder_v   = CNNEncoder(task, 'normal', ode_latent_dim//order, n_filt, frames).to(device)
+        else:
+            self.encoder = RNNEncoder('normal', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+            if inv_latent_dim>0:
+                self.inv_encoder = RNNEncoder('dirac', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+            if order==2:
+                self.encoder_v   = RNNEncoder('normal', task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+
+        ### build decoder
         self.decoder = Decoder(task, ode_latent_dim//order+ inv_latent_dim, n_filt, distribution).to(device)
+
         self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
-        if order==2:
-            self.encoder_v = Encoder(task, ode_latent_dim//order, inv_latent_dim, n_filt, frames).to(device)
         
         self.ode_latent_dim = ode_latent_dim
         self.order = order
@@ -121,9 +133,37 @@ class VAE(nn.Module):
         y = self.decoder(z)
         return y
 
-class Encoder(nn.Module):
-    def __init__(self, task, enc_out_dim=16, inv_latent_dim=0, n_filt=8, n_in_channels=1):
-        super(Encoder, self).__init__()
+
+class AbstractEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.sp = nn.Softplus()
+
+    def sample(self, mu, std):
+        if std is None:
+            return mu
+        eps = torch.randn_like(std)
+        return mu + std*eps
+
+    def q_dist(self, mu_s, std_s, mu_v=None, std_v=None):
+        if mu_v is not None:
+            means = torch.cat((mu_s,mu_v), dim=-1)
+            stds  = torch.cat((std_s,std_v), dim=-1)
+        else:
+            means = mu_s
+            stds  = std_s
+
+        return Normal(means, stds) #N,q
+
+    @property
+    def device(self):
+        return self.sp.device
+
+
+class CNNEncoder(AbstractEncoder):
+    def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):
+        super(CNNEncoder, self).__init__()
+        self.out_distr = out_distr
         if task=='rot_mnist':
             self.cnn, in_features = build_rot_mnist_cnn_enc(n_in_channels, n_filt)
         elif task=='mov_mnist':
@@ -131,41 +171,34 @@ class Encoder(nn.Module):
         else:
             raise ValueError(f'Unknown task {task}')
         self.fc1 = nn.Linear(in_features, enc_out_dim)
-        self.fc2 = nn.Linear(in_features, enc_out_dim)
-        self.fc3 = nn.Linear(in_features, inv_latent_dim)
-        self.sp  = nn.Softplus()
-
-    def forward(self, x, content=False):
-        h = self.cnn(x)
-        if not content:
-            z0_mu, z0_log_sig_sq = self.fc1(h), self.fc2(h) # N,q & N,q
-            return z0_mu, z0_log_sig_sq
-        else:
-            qz_st = self.fc3(h)
-            return qz_st
-
-    def sample(self, mu, logvar):
-        std = self.sp(logvar)
-        eps = torch.randn_like(std)
-        return mu + std*eps
-
-    def q_dist(self, mu_s, logvar_s, mu_v=None, logvar_v=None):
-        if mu_v is not None:
-            means = torch.cat((mu_s,mu_v), dim=-1)
-            log_v = torch.cat((logvar_s,logvar_v), dim=-1)
-        else:
-            means = mu_s
-            log_v = logvar_s
+        if out_distr=='normal':
+            self.fc2 = nn.Linear(in_features, enc_out_dim)
         
-        std_ = nn.functional.softplus(log_v)
-        if torch.isnan(std_).any():
-            std_ = EPSILON + nn.functional.softplus(log_v)
+    def forward(self, x):
+        h = self.cnn(x)
+        z0_mu = self.fc1(h)
+        if self.out_distr=='normal':
+            z0_log_sig = self.fc2(h) # N,q & N,q
+            z0_log_sig = self.sp(z0_log_sig)
+            return z0_mu, z0_log_sig
+        else:
+            return z0_mu
 
-        return Normal(means, std_) #N,q
+class RNNEncoder(AbstractEncoder):
+    def __init__(self, input_dim, enc_out_dim=16, out_distr='normal'):
+        super(RNNEncoder, self).__init__()
+        out_dims = enc_out_dim if out_distr=='normal' else [enc_out_dim,enc_out_dim]
+        self.net = GRUEncoder(out_dims, input_dim, rnn_output_size=20, H=50)
+        
+    def forward(self, x):
+        if self.out_distr=='normal':
+            z0_mu, z0_log_sig = self.net(x)
+            z0_log_sig = self.sp(z0_log_sig)
+            return z0_mu, z0_log_sig
+        else:
+            z0 = self.net(x)
+            return z0
 
-    @property
-    def device(self):
-        return next(self.parameters()).device
 
 
 class Decoder(nn.Module):

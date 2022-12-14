@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-
+ 
 class INVODEVAE(nn.Module):
     def __init__(self, flow, vae, num_observations, order, steps, dt, inv_gp=None) -> None:
         super().__init__()
@@ -64,17 +64,16 @@ class INVODEVAE(nn.Module):
 
         #encode dynamics
         s0_mu, s0_logv = self.vae.encoder(X[:,0]) # N,q
-        z0 = self.vae.encoder.sample(mu = s0_mu, logvar = s0_logv)
+        z0 = self.vae.encoder.sample(s0_mu, s0_logv)
         v0_mu, v0_logv = None, None
         if self.order == 2:
             v0_mu, v0_logv = self.vae.encoder_v(torch.squeeze(X[:,0:self.v_steps]))
-            v0 = self.vae.encoder_v.sample(mu= v0_mu, logvar = v0_logv)
+            v0 = self.vae.encoder_v.sample(v0_mu, v0_logv)
             z0 = torch.concat([z0,v0],dim=1) #N, 2q
 
         #encode content (invariance)
         if self.is_inv:
-            qz_st = self.vae.encoder(X.reshape(N*T_orig, nc,d,d), content=True) # NT,q
-            # inv_z_st = self.inv_gp(qz_st).rsample().reshape(N,T_orig,-1).mean(1) #N,q
+            qz_st = self.vae.inv_encoder(X.reshape(N*T_orig, nc,d,d)) # NT,q
             mean,var = self.inv_gp.build_conditional(qz_st)
             dist = torch.distributions.Normal(mean,var)
             inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,T_orig,-1).mean(-2) # L,N,q

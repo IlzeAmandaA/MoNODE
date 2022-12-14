@@ -49,9 +49,9 @@ def load_rot_mnist_data(args, device, dtype):
 	dataset = sio.loadmat(fullname)
 	
 	X = dataset['X'].squeeze()
-	if args.value:
+	if args.digit:
 		Y = dataset['Y'].squeeze() 
-		X = X[Y==args.value,:,:]
+		X = X[Y==args.digit,:,:]
 	T = X.shape[1]
 
 	N = args.Ntrain #train
