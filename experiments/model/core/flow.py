@@ -34,7 +34,7 @@ class ODEfunc(nn.Module):
     def second_order(self, sv):
         q = sv.shape[1]//2
         ds = sv[:,q:]  # N,q
-        dv = self.diffeq(sv) # N,q        
+        dv = self.diffeq(sv) # N,q  
         return torch.cat([ds,dv],1) # N,2q  
 
     def forward(self, t, sv): 

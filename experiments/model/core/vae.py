@@ -90,12 +90,11 @@ class VAE(nn.Module):
     def __init__(self, task, frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
         super(VAE, self).__init__()
 
-        self.encoder = Encoder(task, ode_latent_dim, inv_latent_dim, n_filt).to(device)
-        self.decoder = Decoder(task, ode_latent_dim, inv_latent_dim, n_filt, distribution).to(device)
+        self.encoder = Encoder(task, ode_latent_dim//order, inv_latent_dim, n_filt).to(device)
+        self.decoder = Decoder(task, ode_latent_dim//order+ inv_latent_dim, n_filt, distribution).to(device)
         self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         if order==2:
-            self.encoder_v = Encoder(task, ode_latent_dim, inv_latent_dim, n_filt, frames).to(device)
-            self.prior = Normal(torch.zeros(ode_latent_dim*2).to(device), torch.ones(ode_latent_dim*2).to(device))
+            self.encoder_v = Encoder(task, ode_latent_dim//order, inv_latent_dim, n_filt, frames).to(device)
         
         self.ode_latent_dim = ode_latent_dim
         self.order = order
@@ -123,7 +122,7 @@ class VAE(nn.Module):
         return y
 
 class Encoder(nn.Module):
-    def __init__(self, task, ode_latent_dim=16, inv_latent_dim=0, n_filt=8, n_in_channels=1):
+    def __init__(self, task, enc_out_dim=16, inv_latent_dim=0, n_filt=8, n_in_channels=1):
         super(Encoder, self).__init__()
         if task=='rot_mnist':
             self.cnn, in_features = build_rot_mnist_cnn_enc(n_in_channels, n_filt)
@@ -131,8 +130,8 @@ class Encoder(nn.Module):
             self.cnn, in_features = build_mov_mnist_cnn_enc(n_in_channels, n_filt)
         else:
             raise ValueError(f'Unknown task {task}')
-        self.fc1 = nn.Linear(in_features, ode_latent_dim)
-        self.fc2 = nn.Linear(in_features, ode_latent_dim)
+        self.fc1 = nn.Linear(in_features, enc_out_dim)
+        self.fc2 = nn.Linear(in_features, enc_out_dim)
         self.fc3 = nn.Linear(in_features, inv_latent_dim)
         self.sp  = nn.Softplus()
 
@@ -152,8 +151,8 @@ class Encoder(nn.Module):
 
     def q_dist(self, mu_s, logvar_s, mu_v=None, logvar_v=None):
         if mu_v is not None:
-            means = torch.cat((mu_s,mu_v), dim=1)
-            log_v = torch.cat((logvar_s,logvar_v), dim=1)
+            means = torch.cat((mu_s,mu_v), dim=-1)
+            log_v = torch.cat((logvar_s,logvar_v), dim=-1)
         else:
             means = mu_s
             log_v = logvar_s
@@ -170,13 +169,13 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, task, ode_latent_dim=16, inv_latent_dim=16, n_filt=8, distribution='bernoulli'):
+    def __init__(self, task, dec_inp_dim, n_filt=8, distribution='bernoulli'):
         super(Decoder, self).__init__()
         self.distribution = distribution
         if task=='rot_mnist':
-            self.fc_cnn = build_rot_mnist_cnn_dec(n_filt, ode_latent_dim+inv_latent_dim)
+            self.fc_cnn = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='mov_mnist':
-            self.fc_cnn = build_mov_mnist_cnn_dec(n_filt, ode_latent_dim+inv_latent_dim)
+            self.fc_cnn = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         else:
             raise ValueError(f'Unknown task {task}')
 

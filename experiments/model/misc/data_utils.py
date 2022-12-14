@@ -6,8 +6,6 @@ from torch.utils import data
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
-T=16
-
 def load_data(args, device, dtype):
 	if args.task=='rot_mnist':
 		trainset, testset = load_rot_mnist_data(args, device, dtype)
@@ -27,6 +25,9 @@ class Dataset(data.Dataset):
 		return len(self.Xtr)
 	def __getitem__(self, idx):
 		return self.Xtr[idx]
+	@property
+	def shape(self):
+		return self.Xtr.shape
 
 
 def __build_dataset(num_workers, batch_size, Xtr, Xtest, shuffle=True):
@@ -51,11 +52,12 @@ def load_rot_mnist_data(args, device, dtype):
 	if args.value:
 		Y = dataset['Y'].squeeze() 
 		X = X[Y==args.value,:,:]
+	T = X.shape[1]
 
 	N = args.Ntrain #train
 	Nt = args.Nvalid + N # valid
-	Xtr   = torch.tensor(X[:N],   device=device, dtype=dtype).view([N,T,1,28,28])
-	Xtest = torch.tensor(X[N:Nt], device=device, dtype=dtype).view([-1,T,1,28,28])
+	Xtr   = torch.tensor(X[:N],   device=device, dtype=dtype).view([args.Ntrain,T,1,28,28])
+	Xtest = torch.tensor(X[N:Nt], device=device, dtype=dtype).view([args.Nvalid,T,1,28,28])
 
 	if args.rotrand:
 		Xtr   = torch.cat([Xtr,Xtr[:,1:]],1) # N,2T,1,d,d
@@ -66,7 +68,7 @@ def load_rot_mnist_data(args, device, dtype):
 		Xtest = torch.stack([Xtest[i,t0:t0+T] for i,t0 in enumerate(t0s_test)])
 
 	# Generators
-	return __build_dataset(args.num_workers, args.batch, Xtr, Xtest)
+	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
 def load_mov_mnist_data(args, device, dtype):
 	N  = args.Ntrain #train

@@ -4,12 +4,25 @@ import torch
 import os
 from pathlib import Path
 
+def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
+    testset, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter):
+
+    plotter.plot_fit(trainset, tr_rec, 'tr')
+    plotter.plot_fit(testset,  te_rec, 'test')
+
+    plotter.plot_latent(ztl_tr, 'tr')
+    plotter.plot_latent(ztl_te, 'test')
+
+    plot_trace(elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter, args) # logpL_meter, logztL_meter, args)
+
 class Plotter:
 	def __init__(self, root, task_name):
 		self.task_name    = task_name
 		self.path_prefix  = root
 		if self.task_name=='rot_mnist':
-			self.plot_fit_fnc    = plot_rot_mnist
+			self.plot_fit_fnc    = plot_mnist
+		if self.task_name=='mov_mnist':
+			self.plot_fit_fnc    = plot_mnist
 		self.plot_latent_fnc = plot_latent_traj
 
 	def plot_fit(self, X, Xrec, fname=''):
@@ -22,7 +35,7 @@ class Plotter:
 		fname = os.path.join(self.path_prefix, fname)
 		self.plot_latent_fnc(z, fname=fname)
 
-def plot_rot_mnist(X, Xrec, show=False, fname='rot_mnist.png', N=None):
+def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
     if N is None:
         N = min(X.shape[0],10)
     Xnp = X.detach().cpu().numpy()
@@ -30,15 +43,16 @@ def plot_rot_mnist(X, Xrec, show=False, fname='rot_mnist.png', N=None):
     Tdata = X.shape[1]
     Tpred = Xrec.shape[1]
     T = max(Tpred,Tdata)
+    c = Xnp.shape[-1]
     plt.figure(2,(T,3*N))
     for i in range(N):
         for t in range(Tdata):
             plt.subplot(2*N,T,i*T*2+t+1)
-            plt.imshow(np.reshape(Xnp[i,t],[28,28]), cmap='gray')
+            plt.imshow(np.reshape(Xnp[i,t],[c,c]), cmap='gray')
             plt.xticks([]); plt.yticks([])
         for t in range(Tpred):
             plt.subplot(2*N,T,i*T*2+t+T+1)
-            plt.imshow(np.reshape(Xrecnp[i,t],[28,28]), cmap='gray')
+            plt.imshow(np.reshape(Xrecnp[i,t],[c,c]), cmap='gray')
             plt.xticks([]); plt.yticks([])
     if show:
         plt.show()
@@ -47,7 +61,7 @@ def plot_rot_mnist(X, Xrec, show=False, fname='rot_mnist.png', N=None):
         plt.close()
 
 
-def plot_latent_traj(Q, Nplot=10, show=False, fname='rot_mnist_latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)
+def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)
     [N,T,q] = Q.squeeze(0).shape 
     if q>2:
         Q = Q.reshape(N*T,q)

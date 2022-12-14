@@ -14,11 +14,11 @@ import torch.nn as nn
 # 2168644 - inv, nn, euler
 
 from model.create_model import build_model, compute_loss, compute_MSE
-from model.create_plots import plot_results, plot_results_caca
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
 from model.misc.data_utils import load_data
+from model.misc.plot_utils import plot_results
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
@@ -41,8 +41,6 @@ parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
 parser.add_argument('--batch_size', type=int, default=20,
                     help="batch size")
-parser.add_argument('--value', type=int, default=3,
-                    help="training choice")
 
 #de model
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
@@ -67,27 +65,23 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=10,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 
 #ode solver
-parser.add_argument('--ode', type=int, default=1,
+parser.add_argument('--order', type=int, default=1,
                     help="order of ODE")
 parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
                     help="ODE solver for numerical integration")
-parser.add_argument('--D_in', type=int, default=6,
-                    help="ODE f(x) input dimensionality")
-parser.add_argument('--D_out', type=int, default=6,
-                    help="ODE f(x) output dimensionality")
 parser.add_argument('--dt', type=float, default=0.1,
                     help="numerical solver dt")
 parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--ode_latent_dim', type=int, default=6,
+parser.add_argument('--ode_latent_dim', type=int, default=10,
                     help="Latent ODE dimensionality")
 parser.add_argument('--n_filt', type=int, default=8,
                     help="Number of filters in the cnn")
@@ -105,7 +99,6 @@ parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
 parser.add_argument('--plot_every', type=int, default=100,
                     help="How often plot the training")
-
 
 #log 
 parser.add_argument('--save', type=str, default='results/',
@@ -142,7 +135,7 @@ if __name__ == '__main__':
 
     ########## dtype #########
     dtype = torch.float64
-    logger.info('Float type is {}'.format(dtype))
+    logger.info('********** Float type is {} ********** '.format(dtype))
 
     ########## plotter #######
     from model.misc.plot_utils import Plotter
@@ -151,10 +144,11 @@ if __name__ == '__main__':
 
     ########### device #######
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logger.info('Running model on {}'.format(device))
+    logger.info('********** Running model on {} ********** '.format(device))
 
     ########### data ############ 
     trainset, testset = load_data(args, device, dtype)
+    logger.info('********** {} dataset with loaded ********** '.format(args.task))
 
     ########### model ###########
     invodevae = build_model(args, device, dtype)
@@ -162,8 +156,8 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | ode {} | D_in {} | D_out {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}'.format(
-                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.ode, args.D_in, args.D_out, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand))
+    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}'.format(
+                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.order, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand))
     logger.info(invodevae)
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')
@@ -217,9 +211,8 @@ if __name__ == '__main__':
                 Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=1, T_custom=2*tr_minibatch.shape[1])
                 Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=1, T_custom=2*test_batch.shape[1])
 
-                plot_results_caca(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:], tr_minibatch, ztL_te[0,:,:,:], \
+                plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:], tr_minibatch, ztL_te[0,:,:,:], \
                     Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
-    # plot_results(args, ztL_tr[1,:,:,:], Xrec_tr[1,:,:,:].squeeze(0), tr_minibatch, ztL_te, Xrec_te, test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
-
+    
 
 

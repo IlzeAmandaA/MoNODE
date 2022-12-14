@@ -22,9 +22,11 @@ def build_model(args, device, dtype):
     """
 
     #differential function
+    D_in  = args.ode_latent_dim
+    D_out = int(D_in / args.order)
     if args.de == 'SVGP':
-        de = SVGP_Layer(D_in=args.D_in, 
-                        D_out=args.D_out, #2q, q
+        de = SVGP_Layer(D_in=D_in, 
+                        D_out=D_out, #2q, q
                         M=args.num_inducing,
                         S=args.num_features,
                         dimwise=args.dimwise,
@@ -36,12 +38,12 @@ def build_model(args, device, dtype):
         de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
     
     elif args.de == 'MLP':
-        de = MLP(args.D_in, args.D_out, L=args.num_layers, H=args.num_hidden, act='softplus') #TODO add as parser args
+        de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') #TODO add as parser args
     
     elif args.de == 'SGP': # does not work at all
-        Z = torch.randn(args.num_inducing, args.D_in)
+        Z = torch.randn(args.num_inducing, D_in)
         u_var = 'diag' if args.q_diag else 'chol'
-        de = SGP(Z, args.D_out, kernel=args.kernel, whitened=True, u_var=u_var)
+        de = SGP(Z, D_out, kernel=args.kernel, whitened=True, u_var=u_var)
         de = de.to(device).to(dtype)
 
     else:
@@ -66,18 +68,18 @@ def build_model(args, device, dtype):
         inv_gp = None
 
     #continous latent ode 
-    flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
+    flow = Flow(diffeq=de, order=args.order, solver=args.solver, use_adjoint=args.use_adjoint)
 
     #encoder & decoder
     vae = VAE(task=args.task, frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
-        inv_latent_dim=args.inv_latent_dim, order= args.ode, device=device).to(dtype)
+        inv_latent_dim=args.inv_latent_dim, order=args.order, device=device).to(dtype)
 
     #full model
     inodevae = INVODEVAE(flow = flow,
                         vae = vae,
                         inv_gp = inv_gp,
                         num_observations = args.Ntrain,
-                        order = args.ode,
+                        order = args.order,
                         steps = args.frames,
                         dt = args.dt)
 
