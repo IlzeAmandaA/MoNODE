@@ -23,10 +23,11 @@ from model.misc.data_utils import load_data
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
 KERNELS   = ['RBF', 'DF']
+TASKS    = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 #data
-parser.add_argument('--task', type=str, default='rot_mnist',
+parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
@@ -38,13 +39,13 @@ parser.add_argument('--Nvalid', type=int, default=40,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
-parser.add_argument('--batch', type=int, default=20,
+parser.add_argument('--batch_size', type=int, default=20,
                     help="batch size")
 parser.add_argument('--value', type=int, default=3,
                     help="training choice")
 
 #de model
-parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -66,7 +67,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=10,
+parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -210,7 +211,7 @@ if __name__ == '__main__':
                 test_mse = compute_MSE(test_batch, Xrec_te)
                 torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
                 mse_meter.update(test_mse.item(),itr_test)
-            logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})\n'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))   
+            logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))   
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=1, T_custom=2*tr_minibatch.shape[1])

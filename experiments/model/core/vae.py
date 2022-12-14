@@ -7,15 +7,94 @@ import numpy as np
 
 EPSILON = 1e-3
 
+def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
+    cnn =   nn.Sequential(
+            nn.Conv2d(n_in_channels, n_filt, kernel_size=5, stride=2, padding=(2,2)), # 14,14
+            nn.BatchNorm2d(n_filt),
+            nn.ReLU(),
+            nn.Conv2d(n_filt, n_filt*2, kernel_size=5, stride=2, padding=(2,2)), # 7,7
+            nn.BatchNorm2d(n_filt*2),
+            nn.ReLU(),
+            nn.Conv2d(n_filt*2, n_filt*4, kernel_size=5, stride=2, padding=(2,2)),
+            nn.ReLU(),
+            Flatten()
+        )
+    out_features = n_filt*4 * 4*4 # encoder output is [4*n_filt,4,4]
+    return cnn, out_features
+
+def build_rot_mnist_cnn_dec(n_filt, n_in):
+    out_features = n_filt*4 * 4*4 # encoder output is [4*n_filt,4,4]
+    cnn = nn.Sequential(
+        nn.Linear(n_in, out_features),
+        UnFlatten(4),
+        nn.ConvTranspose2d(out_features//16, n_filt*8, kernel_size=3, stride=1, padding=(0,0)),
+        nn.BatchNorm2d(n_filt*8),
+        nn.ReLU(),
+        nn.ConvTranspose2d(n_filt*8, n_filt*4, kernel_size=5, stride=2, padding=(1,1)),
+        nn.BatchNorm2d(n_filt*4),
+        nn.ReLU(),
+        nn.ConvTranspose2d(n_filt*4, n_filt*2, kernel_size=5, stride=2, padding=(1,1), output_padding=(1,1)),
+        nn.BatchNorm2d(n_filt*2),
+        nn.ReLU(),
+        nn.ConvTranspose2d(n_filt*2, 1, kernel_size=5, stride=1, padding=(2,2)),
+        nn.Sigmoid(),
+    )
+    return cnn
+
+def build_mov_mnist_cnn_enc(n_in_channels, n_filt):
+	cnn = nn.Sequential(
+            nn.Conv2d(n_in_channels, n_filt, kernel_size=5, stride=2, padding=(2,2)), # 32,32
+            nn.BatchNorm2d(n_filt),
+            nn.ReLU(),
+            nn.Conv2d(n_filt, n_filt*2, kernel_size=5, stride=2, padding=(2,2)), # 16,16
+            nn.BatchNorm2d(n_filt*2),
+            nn.ReLU(),
+            nn.Conv2d(n_filt*2, n_filt*4, kernel_size=5, stride=2, padding=(2,2)), # 8,8
+            nn.BatchNorm2d(n_filt*4),
+            nn.ReLU(),
+            nn.Conv2d(n_filt*4, n_filt*8, kernel_size=5, stride=2, padding=(2,2)), # 4,4
+            nn.BatchNorm2d(n_filt*8),
+            nn.ReLU(),
+            Flatten()
+        )
+	out_features = n_filt*8 * 4*4 
+	return cnn, out_features
+
+def build_mov_mnist_cnn_dec(n_filt, n_in):
+    out_features = n_filt*8 * 4*4 # encoder output is [4*n_filt,4,4]
+    cnn = nn.Sequential(
+            nn.Linear(n_in, out_features),
+            UnFlatten(4),
+            nn.ConvTranspose2d(out_features//16, n_filt*8, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(n_filt*8),
+            nn.ReLU(),
+            nn.ConvTranspose2d(n_filt*8, n_filt*4, kernel_size=5, stride=2, padding=1),
+            nn.BatchNorm2d(n_filt*4),
+            nn.ReLU(),
+            nn.ConvTranspose2d(n_filt*4, n_filt*2, kernel_size=5, stride=2, padding=1),
+            nn.BatchNorm2d(n_filt*2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(n_filt*2, n_filt, kernel_size=5, stride=2, padding=1),
+            nn.BatchNorm2d(n_filt),
+            nn.ReLU(),
+            nn.ConvTranspose2d(n_filt, 1, kernel_size=6, stride=1, padding=2),
+            nn.Sigmoid(),
+        )
+    return cnn
+
+
+
+
+
 class VAE(nn.Module):
-    def __init__(self, frames = 1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
+    def __init__(self, task, frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, distribution='bernoulli'):
         super(VAE, self).__init__()
 
-        self.encoder = Encoder(ode_latent_dim, inv_latent_dim,  n_filt).to(device)
-        self.decoder = Decoder(ode_latent_dim, inv_latent_dim,  n_filt, distribution).to(device)
+        self.encoder = Encoder(task, ode_latent_dim, inv_latent_dim, n_filt).to(device)
+        self.decoder = Decoder(task, ode_latent_dim, inv_latent_dim, n_filt, distribution).to(device)
         self.prior =  Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         if order==2:
-            self.encoder_v = Encoder(ode_latent_dim,  n_filt, frames).to(device)
+            self.encoder_v = Encoder(task, ode_latent_dim, inv_latent_dim, n_filt, frames).to(device)
             self.prior = Normal(torch.zeros(ode_latent_dim*2).to(device), torch.ones(ode_latent_dim*2).to(device))
         
         self.ode_latent_dim = ode_latent_dim
@@ -44,29 +123,18 @@ class VAE(nn.Module):
         return y
 
 class Encoder(nn.Module):
-    def __init__(self,  ode_latent_dim=16, inv_latent_dim=0, n_filt=8,frames=1):
+    def __init__(self, task, ode_latent_dim=16, inv_latent_dim=0, n_filt=8, n_in_channels=1):
         super(Encoder, self).__init__()
-
-        in_features = n_filt*4**3 # encoder output is [4*n_filt,4,4]
-
-        self.cnn = nn.Sequential(
-            nn.Conv2d(frames, n_filt, kernel_size=5, stride=2, padding=(2,2)), # 14,14
-            nn.BatchNorm2d(n_filt),
-            nn.ReLU(),
-            nn.Conv2d(n_filt, n_filt*2, kernel_size=5, stride=2, padding=(2,2)), # 7,7
-            nn.BatchNorm2d(n_filt*2),
-            nn.ReLU(),
-            nn.Conv2d(n_filt*2, n_filt*4, kernel_size=5, stride=2, padding=(2,2)),
-            nn.ReLU(),
-            Flatten()
-        )
-
-
+        if task=='rot_mnist':
+            self.cnn, in_features = build_rot_mnist_cnn_enc(n_in_channels, n_filt)
+        elif task=='mov_mnist':
+            self.cnn, in_features = build_mov_mnist_cnn_enc(n_in_channels, n_filt)
+        else:
+            raise ValueError(f'Unknown task {task}')
         self.fc1 = nn.Linear(in_features, ode_latent_dim)
         self.fc2 = nn.Linear(in_features, ode_latent_dim)
         self.fc3 = nn.Linear(in_features, inv_latent_dim)
-
-        self.sp = nn.Softplus()
+        self.sp  = nn.Softplus()
 
     def forward(self, x, content=False):
         h = self.cnn(x)
@@ -78,19 +146,17 @@ class Encoder(nn.Module):
             return qz_st
 
     def sample(self, mu, logvar):
-        var = self.sp(logvar)
-        eps = torch.randn_like(var)
-        return mu + var * eps
+        std = self.sp(logvar)
+        eps = torch.randn_like(std)
+        return mu + std*eps
 
     def q_dist(self, mu_s, logvar_s, mu_v=None, logvar_v=None):
-
         if mu_v is not None:
             means = torch.cat((mu_s,mu_v), dim=1)
             log_v = torch.cat((logvar_s,logvar_v), dim=1)
         else:
             means = mu_s
             log_v = logvar_s
-
         
         std_ = nn.functional.softplus(log_v)
         if torch.isnan(std_).any():
@@ -104,36 +170,21 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, ode_latent_dim=16, inv_latent_dim=16, n_filt=8, distribution='bernoulli'):
+    def __init__(self, task, ode_latent_dim=16, inv_latent_dim=16, n_filt=8, distribution='bernoulli'):
         super(Decoder, self).__init__()
-
         self.distribution = distribution
-
-        h_dim = n_filt*4**3 # encoder output is [4*n_filt,4,4]
-        self.fc = nn.Linear(ode_latent_dim+inv_latent_dim, h_dim)
-
-        self.decnn = nn.Sequential(
-            UnFlatten(4),
-            nn.ConvTranspose2d(h_dim//16, n_filt*8, kernel_size=3, stride=1, padding=(0,0)),
-            nn.BatchNorm2d(n_filt*8),
-            nn.ReLU(),
-            nn.ConvTranspose2d(n_filt*8, n_filt*4, kernel_size=5, stride=2, padding=(1,1)),
-            nn.BatchNorm2d(n_filt*4),
-            nn.ReLU(),
-            nn.ConvTranspose2d(n_filt*4, n_filt*2, kernel_size=5, stride=2, padding=(1,1), output_padding=(1,1)),
-            nn.BatchNorm2d(n_filt*2),
-            nn.ReLU(),
-            nn.ConvTranspose2d(n_filt*2, 1, kernel_size=5, stride=1, padding=(2,2)),
-            nn.Sigmoid(),
-        )
-
+        if task=='rot_mnist':
+            self.fc_cnn = build_rot_mnist_cnn_dec(n_filt, ode_latent_dim+inv_latent_dim)
+        elif task=='mov_mnist':
+            self.fc_cnn = build_mov_mnist_cnn_dec(n_filt, ode_latent_dim+inv_latent_dim)
+        else:
+            raise ValueError(f'Unknown task {task}')
 
     def forward(self, x):
         #L,N,T,q = x.shape
         #s = self.fc(x.contiguous().view([L*N*T,q]) ) # N*T,q
-        s = self.fc(x.contiguous().view([np.prod(list(x.shape[:-1])),x.shape[-1]]))        
-        h = self.decnn(s)
-        return h 
+        inp = x.contiguous().view([np.prod(list(x.shape[:-1])),x.shape[-1]])     
+        return self.fc_cnn(inp)
     
     @property
     def device(self):

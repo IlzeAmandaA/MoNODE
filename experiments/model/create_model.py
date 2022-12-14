@@ -38,7 +38,7 @@ def build_model(args, device, dtype):
     elif args.de == 'MLP':
         de = MLP(args.D_in, args.D_out, L=args.num_layers, H=args.num_hidden, act='softplus') #TODO add as parser args
     
-    elif args.de == 'SGP':
+    elif args.de == 'SGP': # does not work at all
         Z = torch.randn(args.num_inducing, args.D_in)
         u_var = 'diag' if args.q_diag else 'chol'
         de = SGP(Z, args.D_out, kernel=args.kernel, whitened=True, u_var=u_var)
@@ -69,7 +69,7 @@ def build_model(args, device, dtype):
     flow = Flow(diffeq=de, order=args.ode, solver=args.solver, use_adjoint=args.use_adjoint)
 
     #encoder & decoder
-    vae = VAE(frames = args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
+    vae = VAE(task=args.task, frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
         inv_latent_dim=args.inv_latent_dim, order= args.ode, device=device).to(dtype)
 
     #full model
