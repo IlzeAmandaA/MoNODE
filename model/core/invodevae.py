@@ -53,10 +53,12 @@ class INVODEVAE(nn.Module):
 
     def forward(self, X, L=1, T_custom=None):
         if self.is_inv:
-            self.inv_gp.build_cache()
+            try:
+                self.inv_gp.build_cache()
+            except:
+                pass
 
         [N,T] = X.shape[:2]
-        T_orig = T
         if T_custom:
             T = T_custom
 
@@ -72,22 +74,23 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         if self.is_inv:
-            qz_st = self.vae.inv_encoder(X) # N,Tinv,q
-            _, Tinv, q = qz_st.shape
-            qz_st = qz_st.reshape(N*Tinv, q)
-            mean,var = self.inv_gp.build_conditional(qz_st)
-            dist = torch.distributions.Normal(mean,var)
-            inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,Tinv,-1).mean(-2) # L,N,q
+            qz_st    = self.vae.inv_encoder(X) # N,Tinv,q
+            inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
+            # _,Tinv,q = qz_st.shape
+            # qz_st    = qz_st.reshape(N*Tinv, q)
+            # mean,var = self.inv_gp.build_conditional(qz_st)
+            # dist     = torch.distributions.Normal(mean,var)
+            # inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,Tinv,-1).mean(-2) # L,N,q
         else:
             inv_z_st = None
 
 
-        #sample ODE trajectories 
-        ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q
+        if self.aug:
+            pass
+        else:
+            #sample ODE trajectories 
+            nc,d,d = X.shape[2:]
+            ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q
+            Xrec = self.build_decoding(ztL, [L,N,T,nc,d,d], inv_z_st)
 
-        #decode
-        N = X.shape[0]
-        out_dims = [L,N,T,*X.shape[2:]]
-        Xrec = self.build_decoding(ztL, out_dims, inv_z_st)
-
-        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)
+            return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)

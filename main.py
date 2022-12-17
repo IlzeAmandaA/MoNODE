@@ -69,7 +69,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=5,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
