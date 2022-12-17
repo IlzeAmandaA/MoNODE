@@ -51,6 +51,13 @@ class INVODEVAE(nn.Module):
         ztL = [self.flow(z0, ts) for z0 in z0L] # sample L trajectories
         return torch.stack(ztL) # L,N,T,2q
 
+    def sample_augmented_trajectories(self, z0, zc, T, L=1):
+        ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0.device)
+        z0L = torch.stack([z0]*L) if z0.ndim==2 else z0
+        zcL = torch.stack([zc]*L) if zc.ndim==2 else zc
+        ztL = [self.flow(z0, ts, zc) for z0,zc in zip(z0L,zcL)] # sample L trajectories
+        return torch.stack(ztL) # L,N,T,2q
+
     def forward(self, X, L=1, T_custom=None):
         if self.is_inv:
             try:
@@ -84,13 +91,13 @@ class INVODEVAE(nn.Module):
         else:
             inv_z_st = None
 
-
         if self.aug:
-            pass
+            ztL  = self.sample_augmented_trajectories(z0, inv_z_st, T, L) # L,N,T,2q
+            Xrec = self.build_decoding(ztL, [L,N,T,nc,d,d])
         else:
             #sample ODE trajectories 
             nc,d,d = X.shape[2:]
-            ztL = self.sample_trajectories(z0,T,L) # L,N,T,2q
+            ztL  = self.sample_trajectories(z0,T,L) # L,N,T,2q
             Xrec = self.build_decoding(ztL, [L,N,T,nc,d,d], inv_z_st)
 
             return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)

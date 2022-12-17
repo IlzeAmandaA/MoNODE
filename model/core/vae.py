@@ -103,13 +103,13 @@ class VAE(nn.Module):
         elif task=='sin':
             lhood_distribution = 'normal'
             data_dim = 1
-            self.encoder = RNNEncoder(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+            self.encoder = EncoderRNN(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
             # self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt, lhood_distribution, data_dim).to(device)
             self.decoder = Decoder(task, ode_latent_dim, n_filt, lhood_distribution, data_dim).to(device)
             if inv_latent_dim>0:
-                self.inv_encoder = RNNEncoder(data_dim, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
+                self.inv_encoder = InvariantEncoderRNN(data_dim, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
-                self.encoder_v   = RNNEncoder(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+                self.encoder_v   = EncoderRNN(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 
         self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         
@@ -217,20 +217,30 @@ class InvariantEncoderCNN(CNNEncoder):
         X_out = super().forward(X) # N*T,_
         return X_out.reshape(N,T,self.enc_out_dim)
 
-class RNNEncoder(AbstractEncoder):
+class EncoderRNN(AbstractEncoder):
     def __init__(self, input_dim, enc_out_dim=16, out_distr='normal'):
-        super(RNNEncoder, self).__init__()
-        out_dims = enc_out_dim if out_distr=='normal' else [enc_out_dim,enc_out_dim]
-        self.net = GRUEncoder(out_dims, input_dim, rnn_output_size=20, H=50)
+        super(EncoderRNN, self).__init__()
+        self.enc_out_dim = enc_out_dim
+        self.out_distr   = out_distr
+        enc_out_dim      = enc_out_dim + enc_out_dim*(out_distr=='normal')
+        self.gru = GRUEncoder(enc_out_dim, input_dim, rnn_output_size=20, H=50)
         
     def forward(self, x):
+        outputs = self.gru(x)
         if self.out_distr=='normal':
-            z0_mu, z0_log_sig = self.net(x)
+            z0_mu, z0_log_sig = outputs[:,:self.enc_out_dim,], outputs[:,self.enc_out_dim:]
             z0_log_sig = self.sp(z0_log_sig)
             return z0_mu, z0_log_sig
-        else:
-            z0 = self.net(x)
-            return z0
+        return outputs
+
+class InvariantEncoderRNN(EncoderRNN):
+    def __init__(self, input_dim, enc_out_dim=16, out_distr='normal'):
+        super(InvariantEncoderRNN, self).__init__(input_dim, enc_out_dim=16, out_distr='dirac')
+    def forward(self,X):
+        [N,T,d] = X.shape
+        X = X.reshape(N*T,nc,d,d)
+        X_out = super().forward(X) # N*T,_
+        return X_out.reshape(N,T,self.enc_out_dim)
 
 
 class Decoder(nn.Module):

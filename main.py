@@ -27,7 +27,7 @@ TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 #data
-parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
+parser.add_argument('--task', type=str, default='sin', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--aug', type=eval, default=False,
                     help="augmented ODE system or not")
@@ -35,9 +35,9 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=2360,
+parser.add_argument('--Ntrain', type=int, default=36,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=240,
+parser.add_argument('--Nvalid', type=int, default=24,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
