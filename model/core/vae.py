@@ -27,8 +27,6 @@ def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
 def build_rot_mnist_cnn_dec(n_filt, n_in):
     out_features = n_filt*4 * 4*4 # encoder output is [4*n_filt,4,4]
     cnn = nn.Sequential(
-        nn.Linear(n_in, out_features//4),
-        nn.ReLU(),
         nn.Linear(out_features//4, out_features),
         UnFlatten(4),
         nn.ConvTranspose2d(out_features//16, n_filt*8, kernel_size=3, stride=1, padding=(0,0)),
@@ -207,7 +205,7 @@ class VelocityEncoderCNN(CNNEncoder):
         self.num_frames = num_frames
     def forward(self,X):
         [N,T,nc,d,d] = X.shape
-        X_in = X[:,:self.num_frames].reshape(N, self.v_steps*nc, d, d)
+        X_in = X[:,:self.num_frames].reshape(N, self.num_frames*nc, d, d)
         return super().forward(X_in)
 
 class InvariantEncoderCNN(CNNEncoder):
@@ -215,7 +213,7 @@ class InvariantEncoderCNN(CNNEncoder):
         super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels)
     def forward(self,X):
         [N,T,nc,d,d] = X.shape
-        X = X.reshape(N*T, nc,d,d)
+        X = X.reshape(N*T,nc,d,d)
         X_out = super().forward(X) # N*T,_
         return X_out.reshape(N,T,self.enc_out_dim)
 
