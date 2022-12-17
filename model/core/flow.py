@@ -18,22 +18,33 @@ class ODEfunc(nn.Module):
         self.diffeq = diffeq
         self.order = order
         self.register_buffer("_num_evals", torch.tensor(0.))
+    
+    def augment(self,zc=None):
+        self.zc = zc
 
-    def before_odeint(self, rebuild_cache):
+    def before_odeint(self, rebuild_cache, zc=None):
         self._num_evals.fill_(0)
         if rebuild_cache:
             self.diffeq.build_cache()
 
     def num_evals(self):
         return self._num_evals.item()
+    
+    def concat_zc(self, sv):
+        if self.zc is not None:
+            return torch.cat([sv,self.zc],-1) 
+        else:
+            return sv
 
-    def first_order(self, sv):       
+    def first_order(self, sv):
+        sv  = self.concat_zc(sv)
         dsv = self.diffeq(sv) # 25, 2q
         return dsv
 
     def second_order(self, sv):
         q = sv.shape[1]//2
         ds = sv[:,q:]  # N,q
+        sv = self.concat_zc(sv)
         dv = self.diffeq(sv) # N,q  
         return torch.cat([ds,dv],1) # N,2q  
 
@@ -65,23 +76,18 @@ class Flow(nn.Module):
         self.rtol = rtol
         self.use_adjoint = use_adjoint
 
-    def forward(self, z0, ts):
+    def forward(self, z0, ts, zc=None):
         """
         Numerical solution of an IVP
         @param z0: Initial latent state (N,2q)
-        @param logp0: Initial distirbution (N)
         @param ts: Time sequence of length T, first value is considered as t_0
+        @param zc: Context variable
         @return: zt, logp: (N,T,2q) tensor, (N,T) tensor
         """
         odeint = odeint_adjoint if self.use_adjoint else odeint_nonadjoint
         if self.odefunc.diffeq.type == 'SVGP' :
             self.odefunc.before_odeint(rebuild_cache=True)
-            odef = self.odefunc
-
-        elif self.odefunc.diffeq.type == 'SGP':
-            self.odefunc.before_odeint(rebuild_cache=True)
-            self.odefunc.diffeq.fix_gpytorch_cache(0)
-            self.odefunc.diffeq.draw_posterior_function()
+        self.odefunc.augment(zc)
             
         zt = odeint(
             self.odefunc,

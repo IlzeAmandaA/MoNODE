@@ -3,7 +3,7 @@ import torch.nn as nn
 
  
 class INVODEVAE(nn.Module):
-    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_gp=None) -> None:
+    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_gp=None, aug=False) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
@@ -13,6 +13,7 @@ class INVODEVAE(nn.Module):
         self.dt = dt
         self.v_steps = steps
         self.order = order
+        self.aug = aug
 
     @property
     def is_inv(self):
@@ -42,39 +43,41 @@ class INVODEVAE(nn.Module):
         return Xrec
     
     def sample_trajectories(self, z0, T, L=1):
-        ztL = []
         ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0.device)
-        #sample L trajectories
-        for l in range(L):
-            zt = self.flow(z0, ts) # N,T,2q 
-            ztL.append(zt.unsqueeze(0)) # 1,N,T,2q
-        ztL   = torch.cat(ztL,0) # L,N,T,2q
-        return ztL
+        if z0.ndim==2:
+            z0L = torch.stack([z0]*L)
+        else:
+            z0L = z0
+        ztL = [self.flow(z0, ts) for z0 in z0L] # sample L trajectories
+        return torch.stack(ztL) # L,N,T,2q
 
     def forward(self, X, L=1, T_custom=None):
         if self.is_inv:
             self.inv_gp.build_cache()
 
-        [N,T,nc,d,d] = X.shape
+        [N,T] = X.shape[:2]
         T_orig = T
         if T_custom:
             T = T_custom
 
         #encode dynamics
-        s0_mu, s0_logv = self.vae.encoder(X[:,0]) # N,q
-        z0 = self.vae.encoder.sample(s0_mu, s0_logv)
+        s0_mu, s0_logv = self.vae.encoder(X) # N,q
+        z0 = self.vae.encoder.sample(s0_mu, s0_logv, L=L) # N,q or L,N,q
         v0_mu, v0_logv = None, None
         if self.order == 2:
-            v0_mu, v0_logv = self.vae.encoder_v(torch.squeeze(X[:,0:self.v_steps]))
-            v0 = self.vae.encoder_v.sample(v0_mu, v0_logv)
+            assert not self.aug, 'sorry, second order systems + augmented dynamics not implemented yet'
+            v0_mu, v0_logv = self.vae.encoder_v(X)
+            v0 = self.vae.encoder_v.sample(v0_mu, v0_logv, L=L) # N,q or L,N,q
             z0 = torch.concat([z0,v0],dim=1) #N, 2q
 
         #encode content (invariance)
         if self.is_inv:
-            qz_st = self.vae.inv_encoder(X.reshape(N*T_orig, nc,d,d)) # NT,q
+            qz_st = self.vae.inv_encoder(X) # N,Tinv,q
+            _, Tinv, q = qz_st.shape
+            qz_st = qz_st.reshape(N*Tinv, q)
             mean,var = self.inv_gp.build_conditional(qz_st)
             dist = torch.distributions.Normal(mean,var)
-            inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,T_orig,-1).mean(-2) # L,N,q
+            inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,Tinv,-1).mean(-2) # L,N,q
         else:
             inv_z_st = None
 

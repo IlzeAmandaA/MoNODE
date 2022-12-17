@@ -29,6 +29,8 @@ parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 #data
 parser.add_argument('--task', type=str, default='rot_mnist', choices=TASKS,
                     help="Experiment type")
+parser.add_argument('--aug', type=eval, default=False,
+                    help="augmented ODE system or not")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
@@ -67,7 +69,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=5,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -83,7 +85,7 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--ode_latent_dim', type=int, default=10,
+parser.add_argument('--ode_latent_dim', type=int, default=5,
                     help="Latent ODE dimensionality")
 parser.add_argument('--n_filt', type=int, default=8,
                     help="Number of filters in the cnn")
