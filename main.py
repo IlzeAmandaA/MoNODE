@@ -44,7 +44,7 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=10,
+parser.add_argument('--ode_latent_dim', type=int, default=6,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -68,7 +68,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=6,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -92,6 +92,8 @@ parser.add_argument('--decoder_H', type=int, default=100,
                     help="Number of hidden neurons in decoder") 
 parser.add_argument('--rnn_hidden', type=int, default=10,
                     help="Encoder RNN latent dimensionality") 
+parser.add_argument('--dec_act', type=str, default='elu',
+                    help="MLP Decoder activation") 
                     
 
 #training 

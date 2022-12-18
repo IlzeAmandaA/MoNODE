@@ -124,8 +124,8 @@ def plot_trace(elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter
     if make_plot:
         plt.show()
     else:
-        fig.savefig(os.path.join(args.save, 'plots/optimization_trace.png'), dpi=160,
-                    bbox_inches='tight', pad_inches=0.01)
+        fig.savefig(os.path.join(args.save, 'plots/optimization_trace.png'), dpi=160)
+                    # bbox_inches='tight', pad_inches=0.01)
         plt.close(fig)
         np.save(os.path.join(args.save, 'elbo.npy'), np.stack((elbo_meter.iters, elbo_meter.vals), axis=1))
         np.save(os.path.join(args.save, 'nll.npy'), np.stack((nll_meter.iters, nll_meter.vals), axis=1))

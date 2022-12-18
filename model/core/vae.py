@@ -86,7 +86,7 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
@@ -104,7 +104,7 @@ class VAE(nn.Module):
             lhood_distribution = 'normal'
             data_dim = 1
             self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act='elu').to(device)
+            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
             if inv_latent_dim>0:
                 self.inv_encoder = InvariantEncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
