@@ -195,7 +195,13 @@ if __name__ == '__main__':
     for ep in range(args.Nepoch):
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
-            tr_minibatch = local_batch.to(device) # B x T x 1 x 28 x 28 (batch, time, image dim)
+            tr_minibatch = local_batch.to(device) # N,T,...
+            [N,T] = tr_minibatch.shape[:2]
+            T_  = min(T, ep//50+5)
+            N_  = int(N*(T//T_))
+            t0s = torch.randint(0,T-T_-1,[N_]) 
+            tr_minibatch = tr_minibatch.repeat([N_,1,1])
+            tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse = compute_loss(invodevae, tr_minibatch, L)
 
             optimizer.zero_grad()

@@ -255,7 +255,7 @@ class Decoder(nn.Module):
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='sin':
-            self.net = MLP(dec_inp_dim, dec_out_dim, L=0, H=H, act=act)
+            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act=act)
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
             self.sp = nn.Softplus()
         else:
