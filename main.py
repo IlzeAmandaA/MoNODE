@@ -92,7 +92,7 @@ parser.add_argument('--decoder_H', type=int, default=100,
                     help="Number of hidden neurons in decoder") 
 parser.add_argument('--rnn_hidden', type=int, default=10,
                     help="Encoder RNN latent dimensionality") 
-parser.add_argument('--dec_act', type=str, default='elu',
+parser.add_argument('--dec_act', type=str, default='relu',
                     help="MLP Decoder activation") 
                     
 
