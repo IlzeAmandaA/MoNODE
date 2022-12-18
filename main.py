@@ -46,7 +46,7 @@ parser.add_argument('--digit', type=int, default=3,
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=4,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
