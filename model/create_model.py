@@ -106,7 +106,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     '''
     # KL reg
     q = model.vae.encoder.q_dist(s0_mu, s0_logv, v0_mu, v0_logv)
-    kl_reg = kl(q, model.vae.prior).sum(-1) #N
+    kl_z0 = kl(q, model.vae.prior).sum(-1) #N
 
     #Reconstruction log-likelihood
     lhood = model.vae.decoder.log_prob(X,Xrec,L) #L,N,T,d,nc,nc
@@ -124,7 +124,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     else:
         kl_gp_2 = kl_gp
 
-    return lhood.mean(), kl_reg.mean(), kl_gp_2 
+    return lhood.mean(), kl_z0.mean(), kl_gp_2 
 
 def compute_loss(model, data, L, seed=None):
     """
@@ -138,10 +138,9 @@ def compute_loss(model, data, L, seed=None):
     T = data.shape[1]
     in_data = data if seed==None else data[:,:seed]
     Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv) = model(in_data, L, T_custom=T)
-    lhood, kl_reg, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
-    loss = - (lhood - kl_reg) * model.num_observations + kl_gp
-    return loss, -lhood, kl_reg, kl_gp, Xrec, ztL  
-
-def compute_MSE(X, Xrec):
-    assert list(X.shape) == list(Xrec.shape), f'incorrect shapes X: {list(X.shape)}, X_Rec: {list(Xrec.shape)}'
-    return torch.mean((Xrec-X)**2)
+    lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
+    lhood = lhood * model.num_observations
+    kl_z0 = kl_z0 * model.num_observations
+    loss  = - lhood + kl_z0 + kl_gp
+    mse   = torch.mean((Xrec-data)**2)
+    return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse

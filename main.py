@@ -1,4 +1,5 @@
 import os 
+import numpy as np
 import time
 from datetime import datetime, timedelta
 import argparse
@@ -13,7 +14,7 @@ import torch.nn as nn
 # 2168643 - inv, gp, euler
 # 2168644 - inv, nn, euler
 
-from model.create_model import build_model, compute_loss, compute_MSE
+from model.create_model import build_model, compute_loss
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
@@ -43,7 +44,7 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=5,
+parser.add_argument('--ode_latent_dim', type=int, default=10,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -67,7 +68,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=5,
+parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -176,12 +177,12 @@ if __name__ == '__main__':
         logger.info('Resume training for model {}'.format(fname))
 
     ########### log loss values ########
-    elbo_meter = log_utils.CachedRunningAverageMeter(10)
-    nll_meter = log_utils.CachedRunningAverageMeter(10)
-    reg_kl_meter = log_utils.CachedRunningAverageMeter(10)
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
-    mse_meter = log_utils.CachedAverageMeter()
-    time_meter = log_utils.CachedAverageMeter()
+    elbo_meter   = log_utils.CachedRunningAverageMeter(10)
+    nll_meter    = log_utils.CachedRunningAverageMeter(10)
+    kl_z0_meter  = log_utils.CachedRunningAverageMeter(10)
+    mse_meter    = log_utils.CachedRunningAverageMeter(10)
+    time_meter   = log_utils.CachedAverageMeter()
 
     ########### train ###########
     optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
@@ -193,7 +194,7 @@ if __name__ == '__main__':
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(device) # B x T x 1 x 28 x 28 (batch, time, image dim)
-            loss, nlhood, kl_reg, kl_u, Xrec_tr, ztL_tr = compute_loss(invodevae, tr_minibatch, L)
+            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse = compute_loss(invodevae, tr_minibatch, L)
 
             optimizer.zero_grad()
             loss.backward() 
@@ -202,28 +203,29 @@ if __name__ == '__main__':
             #store values 
             elbo_meter.update(loss.item(), global_itr)
             nll_meter.update(nlhood.item(), global_itr)
-            reg_kl_meter.update(kl_reg.item(), global_itr)
+            kl_z0_meter.update(kl_z0.item(), global_itr)
+            mse_meter.update(tr_mse.item(), global_itr)
             inducing_kl_meter.update(kl_u.item(), global_itr)
             time_meter.update(time.time() - begin, global_itr)
             global_itr +=1
 
         with torch.no_grad():
-            mse_meter.reset()
+            torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
+            mses = []
             for itr_test,test_batch in enumerate(testset):
                 test_batch = test_batch.to(device)
-                test_elbo, nlhood, kl_reg, kl_gp, Xrec_te, ztL_te = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
-                Xrec_te = Xrec_te.squeeze(0) #N,T,d,nc,nc
-                test_mse = compute_MSE(test_batch, Xrec_te)
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
-                mse_meter.update(test_mse.item(),itr_test)
-            logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))   
+                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
+                mses.append(test_mse.item())
+            test_mse = np.mean(np.array(mses))
+            logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f})'.\
+                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), test_mse))   
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])
                 Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])
 
                 plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr.squeeze(0), tr_minibatch, ztL_te[0,:,:,:], \
-                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
+                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
     
 
 

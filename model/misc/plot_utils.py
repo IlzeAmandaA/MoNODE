@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
-    testset, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter):
+    testset, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter):
 
     plotter.plot_fit(trainset, tr_rec, 'tr')
     plotter.plot_fit(testset,  te_rec, 'test')
@@ -13,7 +13,7 @@ def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     plotter.plot_latent(ztl_tr, 'tr')
     plotter.plot_latent(ztl_te, 'test')
 
-    plot_trace(elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter, args) # logpL_meter, logztL_meter, args)
+    plot_trace(elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter, args) # logpL_meter, logztL_meter, args)
 
 class Plotter:
 	def __init__(self, root, task_name):
@@ -110,21 +110,15 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
         plt.savefig(fname)
         plt.close()
 
-def plot_trace(elbo_meter, nll_meter,  z_kl_meter, inducing_kl_meter, args, make_plot=False): 
-    fig, axs = plt.subplots(2, 2, figsize=(20, 16))
+def plot_trace(elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter, args, make_plot=False): 
+    fig, axs = plt.subplots(5, 1, figsize=(10, 10))
 
-    axs[0][0].plot(elbo_meter.iters, elbo_meter.vals)
-    axs[0][0].set_title("Loss (-elbo) function")
-    axs[0][0].grid()
-    axs[0][1].plot(nll_meter.iters, nll_meter.vals)
-    axs[0][1].set_title("Observation NLL")
-    axs[0][1].grid()
-    axs[1][0].plot(z_kl_meter.iters, z_kl_meter.vals)
-    axs[1][0].set_title("KL rec")
-    axs[1][0].grid()
-    axs[1][1].plot(inducing_kl_meter.iters,inducing_kl_meter.vals)
-    axs[1][1].set_title("Inducing KL")
-    axs[1][1].grid()
+    titles = ["Loss (-elbo)", "Obs NLL", "KL-z0", "KL-U", "MSE"]
+    meters = [elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter]
+    for ax,title,meter in zip(axs,titles,meters):
+        ax.plot(meter.iters, meter.vals)
+        ax.set_title(title)
+        ax.grid()
 
     fig.subplots_adjust()
     if make_plot:
@@ -135,5 +129,5 @@ def plot_trace(elbo_meter, nll_meter,  z_kl_meter, inducing_kl_meter, args, make
         plt.close(fig)
         np.save(os.path.join(args.save, 'elbo.npy'), np.stack((elbo_meter.iters, elbo_meter.vals), axis=1))
         np.save(os.path.join(args.save, 'nll.npy'), np.stack((nll_meter.iters, nll_meter.vals), axis=1))
-        np.save(os.path.join(args.save, 'zkl.npy'), np.stack((z_kl_meter.iters, z_kl_meter.vals), axis=1))
+        np.save(os.path.join(args.save, 'zkl.npy'), np.stack((kl_z0_meter.iters, kl_z0_meter.vals), axis=1))
         np.save(os.path.join(args.save, 'inducingkl.npy'), np.stack((inducing_kl_meter.iters,inducing_kl_meter.vals), axis=1))
