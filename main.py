@@ -29,8 +29,6 @@ parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 #data
 parser.add_argument('--task', type=str, default='sin', choices=TASKS,
                     help="Experiment type")
-parser.add_argument('--aug', type=eval, default=False,
-                    help="augmented ODE system or not")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
@@ -69,6 +67,8 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
+parser.add_argument('--aug', type=eval, default=True,
+                    help="augmented ODE system or not")
 parser.add_argument('--inv_latent_dim', type=int, default=10,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
@@ -103,6 +103,8 @@ parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
 parser.add_argument('--plot_every', type=int, default=100,
                     help="How often plot the training")
+parser.add_argument('--plotL', type=int, default=16,
+                    help="Number of MC draws for plotting")
 
 #log 
 parser.add_argument('--save', type=str, default='results/',
@@ -126,6 +128,8 @@ if __name__ == '__main__':
             path = os.path.join(path,p1)
         Path(path).mkdir(parents=True, exist_ok=True)
         args.save = path
+    elif 'cagatay' in os.getcwd():
+        args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, args.task)
     else:
         args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
             args.save+args.task+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
@@ -212,10 +216,10 @@ if __name__ == '__main__':
             logger.info('Epoch:{:4d}/{:4d}| tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} |test_mse:{:5.3f})'.format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), mse_meter.val))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=1, T_custom=2*tr_minibatch.shape[1])
-                Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=1, T_custom=2*test_batch.shape[1])
+                Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])
+                Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])
 
-                plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr[0,:,:,:], tr_minibatch, ztL_te[0,:,:,:], \
+                plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr.squeeze(0), tr_minibatch, ztL_te[0,:,:,:], \
                     Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, reg_kl_meter, inducing_kl_meter)
     
 

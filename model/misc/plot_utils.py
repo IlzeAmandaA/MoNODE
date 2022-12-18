@@ -22,7 +22,9 @@ class Plotter:
 		if self.task_name=='rot_mnist':
 			self.plot_fit_fnc    = plot_mnist
 		if self.task_name=='mov_mnist':
-			self.plot_fit_fnc    = plot_mnist
+			self.plot_fit_fnc = plot_mnist
+		if self.task_name=='sin':
+			self.plot_fit_fnc = plot_sin
 		self.plot_latent_fnc = plot_latent_traj
 
 	def plot_fit(self, X, Xrec, fname=''):
@@ -34,6 +36,29 @@ class Plotter:
 		fname = self.task_name + '_latents_' + fname + '.png'
 		fname = os.path.join(self.path_prefix, fname)
 		self.plot_latent_fnc(z, fname=fname)
+
+def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
+    ''' X    - [N,T,d] 
+        Xrec - [L,N,Ttest,d]
+    '''
+    if N is None:
+        N = min(X.shape[0],6)
+    if D is None:
+        D = min(X.shape[-1],3)
+    Xnp    = X.detach().cpu().numpy()
+    Xrecnp = Xrec.detach().cpu().numpy()
+    nc,nr = D, N
+    fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False)
+    for n in range(N):
+        for d in range(D):
+            axes[n,d].plot(Xrecnp[:,n,:,d].T, '-', color='tab:gray', lw=0.7, alpha=0.5)
+            axes[n,d].plot(Xnp[n,:,d].T, '-', color='tab:blue', lw=2)
+    if show:
+        plt.show()
+    else:
+        plt.savefig(fname)
+        plt.close()
+
 
 def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
     if N is None:

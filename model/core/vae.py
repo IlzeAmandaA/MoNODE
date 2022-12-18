@@ -234,13 +234,15 @@ class EncoderRNN(AbstractEncoder):
         return outputs
 
 class InvariantEncoderRNN(EncoderRNN):
-    def __init__(self, input_dim, enc_out_dim=16, out_distr='normal'):
-        super(InvariantEncoderRNN, self).__init__(input_dim, enc_out_dim=16, out_distr='dirac')
-    def forward(self,X):
+    def __init__(self, input_dim, enc_out_dim=16, out_distr='dirac'):
+        super(InvariantEncoderRNN, self).__init__(input_dim, enc_out_dim=enc_out_dim, out_distr=out_distr)
+    def forward(self, X, ns=5):
         [N,T,d] = X.shape
-        X = X.reshape(N*T,nc,d,d)
-        X_out = super().forward(X) # N*T,_
-        return X_out.reshape(N,T,self.enc_out_dim)
+        X = X.repeat([ns,1,1])
+        t0s = torch.randint(0,T//2,[ns*N]) 
+        X = torch.stack([X[n,t0:t0+T//2] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
+        X_out = super().forward(X) # N*ns,enc_out_dim
+        return X_out.reshape(N,ns,self.enc_out_dim)
 
 
 class Decoder(nn.Module):
@@ -253,6 +255,8 @@ class Decoder(nn.Module):
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='sin':
             self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=100, act='relu')
+            self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
+            self.sp = nn.Softplus()
         else:
             raise ValueError('Unknown task {task}')
 
@@ -269,15 +273,18 @@ class Decoder(nn.Module):
 
     def log_prob(self, X, Xhat, L=1):
         '''
-        x           - input images [N,T,1,nc,nc]
-        z           - reconstructions [L,N,T,1,nc,nc]
+        x - input [N,T,nc,d,d]   or [N,T,d]
+        z - preds [L,N,T,nc,d,d] or [L,N,T,d]
         '''
-        XL = X.repeat([L,1,1,1,1,1]) # L,N,T,nc,d,d 
+        XL = X.repeat([L]+[1]*X.ndim) # L,N,T,nc,d,d or L,N,T,d
         if self.distribution == 'bernoulli':
             try:
                 log_p = torch.log(Xhat)*XL + torch.log(1-Xhat)*(1-XL) # L,N,T,nc,d,d
             except:
                 log_p = torch.log(EPSILON+Xhat)*XL + torch.log(EPSILON+1-Xhat)*(1-XL) # L,N,T,nc,d,d
+        elif self.distribution == 'normal':
+            std = self.sp(self.out_logsig)
+            log_p = torch.distributions.Normal(XL,std).log_prob(Xhat)
         else:
             raise ValueError('Currently only bernoulli dist implemented')
 
