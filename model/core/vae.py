@@ -104,7 +104,7 @@ class VAE(nn.Module):
             lhood_distribution = 'normal'
             data_dim = 1
             self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim).to(device)
+            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act='elu').to(device)
             if inv_latent_dim>0:
                 self.inv_encoder = InvariantEncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
@@ -247,7 +247,7 @@ class InvariantEncoderRNN(EncoderRNN):
         return X_out.reshape(N,ns,self.enc_out_dim)
 
 class Decoder(nn.Module):
-    def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None):
+    def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None, act='relu'):
         super(Decoder, self).__init__()
         self.distribution = distribution
         if task=='rot_mnist':
@@ -255,7 +255,7 @@ class Decoder(nn.Module):
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='sin':
-            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act='relu')
+            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act=act)
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
             self.sp = nn.Softplus()
         else:
