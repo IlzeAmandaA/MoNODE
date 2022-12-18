@@ -21,7 +21,8 @@ def build_model(args, device, dtype):
     """
 
     #differential function
-    if args.aug:
+    aug = args.task=='sin' and args.inv_latent_dim>0
+    if aug:
         D_in  = args.ode_latent_dim + args.inv_latent_dim
         D_out = int(args.ode_latent_dim / args.order)
     else:
@@ -78,7 +79,8 @@ def build_model(args, device, dtype):
 
     #encoder & decoder
     vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
-        inv_latent_dim=args.inv_latent_dim, order=args.order, device=device).to(dtype)
+            rnn_hidden=args.rnn_hidden, H=args.decoder_H, inv_latent_dim=args.inv_latent_dim, order=args.order, \
+            device=device).to(dtype)
 
     #full model
     inodevae = INVODEVAE(flow = flow,
@@ -87,8 +89,8 @@ def build_model(args, device, dtype):
                         num_observations = args.Ntrain,
                         order = args.order,
                         steps = args.frames,
-                        dt = args.dt,
-                        aug = args.aug)
+                        dt  = args.dt,
+                        aug = aug)
 
     return inodevae
 
@@ -124,8 +126,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
 
     return lhood.mean(), kl_reg.mean(), kl_gp_2 
 
-
-def compute_loss(model, data, L):
+def compute_loss(model, data, L, seed=None):
     """
     Compute loss for optimization
     @param model: a odegpvae object
@@ -134,7 +135,9 @@ def compute_loss(model, data, L):
     @param Ndata: number of training data points 
     @return: loss, nll, regularizing_kl, inducing_kl
     """
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv) = model(data,L)
+    T = data.shape[1]
+    in_data = data if seed==None else data[:,:seed]
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv) = model(in_data, L, T_custom=T)
     lhood, kl_reg, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
     loss = - (lhood - kl_reg) * model.num_observations + kl_gp
     return loss, -lhood, kl_reg, kl_gp, Xrec, ztL  

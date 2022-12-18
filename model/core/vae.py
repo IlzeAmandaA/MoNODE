@@ -86,7 +86,7 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
@@ -94,7 +94,7 @@ class VAE(nn.Module):
         if task=='rot_mnist' or task=='mov_mnist':
             lhood_distribution = 'bernoulli'
             self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
-            self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt, lhood_distribution).to(device)
+            self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
             if inv_latent_dim>0:
                 self.inv_encoder = InvariantEncoderCNN(task, 'dirac', inv_latent_dim, n_filt).to(device)
             if order==2:
@@ -103,13 +103,12 @@ class VAE(nn.Module):
         elif task=='sin':
             lhood_distribution = 'normal'
             data_dim = 1
-            self.encoder = EncoderRNN(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-            # self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt, lhood_distribution, data_dim).to(device)
-            self.decoder = Decoder(task, ode_latent_dim, n_filt, lhood_distribution, data_dim).to(device)
+            self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim).to(device)
             if inv_latent_dim>0:
-                self.inv_encoder = InvariantEncoderRNN(data_dim, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
+                self.inv_encoder = InvariantEncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
-                self.encoder_v   = EncoderRNN(data_dim, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+                self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 
         self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         
@@ -218,14 +217,16 @@ class InvariantEncoderCNN(CNNEncoder):
         return X_out.reshape(N,T,self.enc_out_dim)
 
 class EncoderRNN(AbstractEncoder):
-    def __init__(self, input_dim, enc_out_dim=16, out_distr='normal'):
+    def __init__(self, input_dim, Tin=None, rnn_hidden=10, enc_out_dim=16, out_distr='normal'):
         super(EncoderRNN, self).__init__()
         self.enc_out_dim = enc_out_dim
         self.out_distr   = out_distr
+        self.Tin         = Tin
         enc_out_dim      = enc_out_dim + enc_out_dim*(out_distr=='normal')
-        self.gru = GRUEncoder(enc_out_dim, input_dim, rnn_output_size=20, H=50)
+        self.gru = GRUEncoder(enc_out_dim, input_dim, rnn_output_size=rnn_hidden, H=50)
         
     def forward(self, x):
+        x = x[:,:self.Tin]
         outputs = self.gru(x)
         if self.out_distr=='normal':
             z0_mu, z0_log_sig = outputs[:,:self.enc_out_dim,], outputs[:,self.enc_out_dim:]
@@ -234,19 +235,19 @@ class EncoderRNN(AbstractEncoder):
         return outputs
 
 class InvariantEncoderRNN(EncoderRNN):
-    def __init__(self, input_dim, enc_out_dim=16, out_distr='dirac'):
-        super(InvariantEncoderRNN, self).__init__(input_dim, enc_out_dim=enc_out_dim, out_distr=out_distr)
+    def __init__(self, input_dim, Tin=None, rnn_hidden=10, enc_out_dim=16, out_distr='dirac'):
+        super(InvariantEncoderRNN, self).__init__(input_dim, Tin=Tin, rnn_hidden=rnn_hidden, enc_out_dim=enc_out_dim, out_distr=out_distr)
     def forward(self, X, ns=5):
         [N,T,d] = X.shape
-        X = X.repeat([ns,1,1])
-        t0s = torch.randint(0,T//2,[ns*N]) 
-        X = torch.stack([X[n,t0:t0+T//2] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
+        Tin = T//2 if self.Tin is None else self.Tin
+        X   = X.repeat([ns,1,1])
+        t0s = torch.randint(0,T-Tin-1,[ns*N]) 
+        X   = torch.stack([X[n,t0:t0+Tin] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
         X_out = super().forward(X) # N*ns,enc_out_dim
         return X_out.reshape(N,ns,self.enc_out_dim)
 
-
 class Decoder(nn.Module):
-    def __init__(self, task, dec_inp_dim, n_filt=8, distribution='bernoulli', dec_out_dim=None):
+    def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None):
         super(Decoder, self).__init__()
         self.distribution = distribution
         if task=='rot_mnist':
@@ -254,7 +255,7 @@ class Decoder(nn.Module):
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='sin':
-            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=100, act='relu')
+            self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act='relu')
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
             self.sp = nn.Softplus()
         else:

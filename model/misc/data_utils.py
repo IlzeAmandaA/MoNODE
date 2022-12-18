@@ -83,7 +83,7 @@ def load_sin_data(args, device, dtype):
 	try:
 		X = torch.load(data_path)
 	except:
-		gen_sin_data(data_path, args.Ntrain, args.Nvalid)
+		gen_sin_data(data_path, args.Ntrain+args.Nvalid)
 		X = torch.load(data_path)
 	try:
 		X = X.to(device).to(dtype)
@@ -92,12 +92,10 @@ def load_sin_data(args, device, dtype):
 		torch.save(X,data_path)
 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
 
-def gen_sin_data(data_path, Ntr, Ntest, T=100, dt=0.1, sig=.1): 
-	N = Ntr+Ntest
+def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1): 
 	phis = torch.rand(N,1) #
 	fs = torch.rand(N,1) * .5 + .5 # N,1, [0.5, 1.0]
 	A  = torch.rand(N,1) * 2 + 1   # N,1, [1.0, 3.0]
-
 	ts = torch.arange(T) * dt # T
 	ts = torch.stack([ts]*N)  # N,T
 	ts = (ts*fs+phis) * 2*np.pi # N,T

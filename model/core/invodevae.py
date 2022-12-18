@@ -96,8 +96,7 @@ class INVODEVAE(nn.Module):
             Xrec = self.build_decoding(ztL, [L,N,T,-1])
         else:
             #sample ODE trajectories 
-            nc,d,d = X.shape[2:]
             ztL  = self.sample_trajectories(z0,T,L) # L,N,T,2q
-            Xrec = self.build_decoding(ztL, [L,N,T,nc,d,d], inv_z_st)
+            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], inv_z_st)
 
         return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv)
