@@ -44,7 +44,7 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=8,
+parser.add_argument('--ode_latent_dim', type=int, default=6,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -68,7 +68,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=6,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -198,9 +198,9 @@ if __name__ == '__main__':
             tr_minibatch = local_batch.to(device) # N,T,...
             [N,T] = tr_minibatch.shape[:2]
             T_  = min(T, ep//50+5)
-            if T_ < T-1:
+            if T_ < T:
                 N_  = int(N*(T//T_))
-                t0s = torch.randint(0,T-T_-1,[N_]) 
+                t0s = torch.randint(0,T-T_,[N_]) 
                 tr_minibatch = tr_minibatch.repeat([N_,1,1])
                 tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse = compute_loss(invodevae, tr_minibatch, L)

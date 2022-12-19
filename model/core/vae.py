@@ -106,7 +106,7 @@ class VAE(nn.Module):
             self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
             self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
             if inv_latent_dim>0:
-                self.inv_encoder = InvariantEncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
+                self.inv_encoder = InvariantEncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
                 self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 
@@ -240,8 +240,9 @@ class InvariantEncoderRNN(EncoderRNN):
     def forward(self, X, ns=5):
         [N,T,d] = X.shape
         Tin = T//2 if self.Tin is None else self.Tin
+        Tin = Tin if T>Tin else T
         X   = X.repeat([ns,1,1])
-        t0s = torch.randint(0,T-Tin-1,[ns*N]) 
+        t0s = torch.randint(0,T-Tin+1,[ns*N]) 
         X   = torch.stack([X[n,t0:t0+Tin] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
         X_out = super().forward(X) # N*ns,enc_out_dim
         return X_out.reshape(N,ns,self.enc_out_dim)
