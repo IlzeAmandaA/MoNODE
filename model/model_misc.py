@@ -125,7 +125,7 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     else:
         kl_gp_2 = kl_gp
 
-    return lhood.mean(), kl_z0.mean(), kl_gp_2 
+    return lhood.mean(), 0*kl_z0.mean(), kl_gp_2 
 
 def compute_loss(model, data, L, seed=None):
     """

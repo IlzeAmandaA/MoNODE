@@ -11,7 +11,9 @@ import torch.nn as nn
 # 2182198 - invariant CNN
 # 2182191 - not invariant
 # 2182214 - small data
-# 2182307 - small data, NN
+
+# 2182307 - small data, NN-inv
+# 2182308 - small data, NN
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils
@@ -45,9 +47,9 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=8,
+parser.add_argument('--ode_latent_dim', type=int, default=4,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -69,7 +71,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=4,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -142,7 +144,7 @@ if __name__ == '__main__':
             args.save+args.task+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
     io_utils.makedirs(args.save)
     io_utils.makedirs(os.path.join(args.save, 'plots'))
-    logger = io_utils.get_logger(logpath=os.path.join(args.save, 'logs'))
+    logger = io_utils.get_logger(logpath=os.path.join(args.save, 'logs.txt'))
     logger.info('Results stored in {}'.format(args.save))
 
     ########## set global random seed ###########
