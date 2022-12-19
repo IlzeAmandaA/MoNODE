@@ -6,13 +6,8 @@ import argparse
 import torch
 import torch.nn as nn
 
-# 2168544, 2168604 - gp, euler
-# 2168567 - gp, dopri5
-# 2168606 - nn, euler
-# 2168608 - nn, dopri5
-
-# 2168643 - inv, gp, euler
-# 2168644 - inv, nn, euler
+# 2180009 - invariant
+# 2180009 - not invariant
 
 from model.create_model import build_model, compute_loss
 from model.misc import io_utils
@@ -47,7 +42,7 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=6,
+parser.add_argument('--ode_latent_dim', type=int, default=8,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -71,7 +66,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=6,
+parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
