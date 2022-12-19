@@ -4,7 +4,7 @@ import argparse
 import torch
 import torch.nn as nn
 
-# 2180009 - invariant     - asd
+# 2180009 - invariant     - 2182170
 # 2180016 - not invariant - 2182167
 
 from model.model_misc import build_model, train_model
@@ -35,11 +35,11 @@ parser.add_argument('--Nvalid', type=int, default=40,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
-parser.add_argument('--digit', type=int, default=5,
+parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=6,
+parser.add_argument('--ode_latent_dim', type=int, default=2,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -174,7 +174,8 @@ if __name__ == '__main__':
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
     # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
-    fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180009/invodevae.pth'
-    invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
+    # fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180009/invodevae.pth'
+    # invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
+    # train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
 
-    train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
+    train_model(args, invodevae, plotter, trainset, testset, logger)
