@@ -65,10 +65,10 @@ def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
         Xrec = Xrec[0]
     if N is None:
         N = min(X.shape[0],10)
-    Xnp = X.detach().cpu().numpy()
+    Xnp    = X.detach().cpu().numpy()
     Xrecnp = Xrec.detach().cpu().numpy()
-    Tdata = X.shape[1]
-    Tpred = Xrec.shape[1]
+    Tdata  = X.shape[1]
+    Tpred  = Xrec.shape[1]
     T = max(Tpred,Tdata)
     c = Xnp.shape[-1]
     plt.figure(2,(T,3*N))

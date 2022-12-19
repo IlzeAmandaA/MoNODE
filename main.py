@@ -1,7 +1,5 @@
 import os 
-import numpy as np
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import argparse
 import torch
 import torch.nn as nn
@@ -9,12 +7,10 @@ import torch.nn as nn
 # 2180009 - invariant
 # 2180016 - not invariant
 
-from model.create_model import build_model, compute_loss, train_model
+from model.model_misc import build_model, train_model
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
-from model.misc import log_utils 
 from model.misc.data_utils import load_data
-from model.misc.plot_utils import plot_results
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP', 'SGP']
@@ -33,13 +29,13 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=360,
+parser.add_argument('--Ntrain', type=int, default=500,
                     help="Number training data points")
 parser.add_argument('--Nvalid', type=int, default=40,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
-parser.add_argument('--digit', type=int, default=3,
+parser.add_argument('--digit', type=int, default=5,
                     help="Rotating MNIST digit (train data)")
 
 #de model
@@ -177,69 +173,8 @@ if __name__ == '__main__':
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    # if args.retrain:
-    #     retrain_model()
+    fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
+    # fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180016/invodevae.pth'
+    invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
 
-    train_model(args, invodevae, plotter, trainset, testset, logger)
-
-    ########### logs ########
-    inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
-    elbo_meter   = log_utils.CachedRunningAverageMeter(10)
-    nll_meter    = log_utils.CachedRunningAverageMeter(10)
-    kl_z0_meter  = log_utils.CachedRunningAverageMeter(10)
-    mse_meter    = log_utils.CachedRunningAverageMeter(10)
-    time_meter   = log_utils.CachedAverageMeter()
-
-    optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
-    begin = time.time()
-    global_itr = 0
-
-    ########### train ###########
-    logger.info('********** Started Training **********')
-    for ep in range(args.Nepoch):
-        L = 1 if ep<args.Nepoch//2 else 5 
-        for itr,local_batch in enumerate(trainset):
-            tr_minibatch = local_batch.to(device) # N,T,...
-            if args.task=='sin':
-                [N,T] = tr_minibatch.shape[:2]
-                T_  = min(T, ep//50+5)
-                if T_ < T:
-                    N_  = int(N*(T//T_))
-                    t0s = torch.randint(0,T-T_,[N_]) 
-                    tr_minibatch = tr_minibatch.repeat([N_,1,1])
-                    tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
-            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse = compute_loss(invodevae, tr_minibatch, L)
-
-            optimizer.zero_grad()
-            loss.backward() 
-            optimizer.step()
-
-            #store values 
-            elbo_meter.update(loss.item(), global_itr)
-            nll_meter.update(nlhood.item(), global_itr)
-            kl_z0_meter.update(kl_z0.item(), global_itr)
-            mse_meter.update(tr_mse.item(), global_itr)
-            inducing_kl_meter.update(kl_u.item(), global_itr)
-            time_meter.update(time.time() - begin, global_itr)
-            global_itr +=1
-
-        with torch.no_grad():
-            torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
-            mses = []
-            for itr_test,test_batch in enumerate(testset):
-                test_batch = test_batch.to(device)
-                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
-                mses.append(test_mse.item())
-            test_mse = np.mean(np.array(mses))
-            logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f})'.\
-                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo.item(), test_mse))   
-
-            if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr, _, _ = invodevae(tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])
-                Xrec_te, ztL_te, _, _ = invodevae(test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])
-
-                plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr.squeeze(0), tr_minibatch, ztL_te[0,:,:,:], \
-                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
-    
-
-
+    train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
