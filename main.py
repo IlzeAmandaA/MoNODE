@@ -39,7 +39,7 @@ parser.add_argument('--digit', type=int, default=5,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=8,
+parser.add_argument('--ode_latent_dim', type=int, default=6,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -63,7 +63,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=0,
+parser.add_argument('--inv_latent_dim', type=int, default=6,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -174,7 +174,7 @@ if __name__ == '__main__':
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
     # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
-    fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180016/invodevae.pth'
+    fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180009/invodevae.pth'
     invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
 
     train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
