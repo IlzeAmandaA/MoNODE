@@ -4,8 +4,8 @@ import argparse
 import torch
 import torch.nn as nn
 
-# 2180009 - invariant
-# 2180016 - not invariant
+# 2180009 - invariant     - asd
+# 2180016 - not invariant - 2182167
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils
@@ -173,8 +173,8 @@ if __name__ == '__main__':
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
-    # fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180016/invodevae.pth'
+    # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
+    fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180016/invodevae.pth'
     invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
 
     train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
