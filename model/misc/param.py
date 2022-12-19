@@ -20,6 +20,10 @@ class Param(torch.nn.Module):
                                                       dtype=dtype,
                                                       device=device)) #to(settings.device)
 
+    @property
+    def device(self):
+        return self.optvar.device
+
     def __call__(self):
         return self.transform.forward_tensor(self.optvar)
 

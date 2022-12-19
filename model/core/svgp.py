@@ -201,8 +201,6 @@ class SVGP_Layer(torch.nn.Module):
         kl = 0.5 * twoKL.sum()
         return kl
 
-
-
     def build_conditional(self, x, full_cov=False):
         """
         Calculates conditional distribution q(f(x)) = N(m(x), Sigma(x))

@@ -16,6 +16,10 @@ class INVODEVAE(nn.Module):
         self.aug = aug
 
     @property
+    def device(self):
+        return self.flow.device
+
+    @property
     def is_inv(self):
         return self.inv_gp is not None
 

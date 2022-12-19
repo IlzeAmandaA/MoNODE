@@ -19,6 +19,10 @@ class ODEfunc(nn.Module):
         self.order = order
         self.register_buffer("_num_evals", torch.tensor(0.))
     
+    @property
+    def device(self):
+        return self.diffeq.device
+
     def augment(self,zc=None):
         self.zc = zc
 
@@ -75,6 +79,10 @@ class Flow(nn.Module):
         self.atol = atol
         self.rtol = rtol
         self.use_adjoint = use_adjoint
+    
+    @property
+    def device(self):
+        return self.odefunc.device
 
     def forward(self, z0, ts, zc=None):
         """

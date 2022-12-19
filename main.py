@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 
 # 2180009 - invariant
-# 2180009 - not invariant
+# 2180016 - not invariant
 
-from model.create_model import build_model, compute_loss
+from model.create_model import build_model, compute_loss, train_model
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from model.misc import log_utils 
@@ -22,8 +22,9 @@ KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
-ROT_MNIST_DEFAULTS = {'task':'rot_mnist', 'Ntrain':400, 'batch_size':25}
-SIN_DEFAULTS       = {'task':'sin', 'Ntrain':250, 'batch_size':50}
+# TASK = 'rot_mnist'
+# NTRAIN_DEFAULTS     = {'rot_mnist':400, 'mov_mnist':400, 'sin':250}
+# BATCH_SIZE_DEFAULTS = {'rot_mnist':25,  'mov_mnist':25,  'sin':50}
 
 #data
 parser.add_argument('--task', type=str, default='rot_mnist', choices=TASKS,
@@ -32,9 +33,9 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=250,
+parser.add_argument('--Ntrain', type=int, default=360,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=50,
+parser.add_argument('--Nvalid', type=int, default=40,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotatio angles")
@@ -174,9 +175,14 @@ if __name__ == '__main__':
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
-        logger.info('Resume training for model {}'.format(fname))
+        logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    ########### log loss values ########
+    # if args.retrain:
+    #     retrain_model()
+
+    train_model(args, invodevae, plotter, trainset, testset, logger)
+
+    ########### logs ########
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
     elbo_meter   = log_utils.CachedRunningAverageMeter(10)
     nll_meter    = log_utils.CachedRunningAverageMeter(10)
@@ -184,12 +190,12 @@ if __name__ == '__main__':
     mse_meter    = log_utils.CachedRunningAverageMeter(10)
     time_meter   = log_utils.CachedAverageMeter()
 
-    ########### train ###########
     optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
-
-    logger.info('********** Started Training **********')
     begin = time.time()
     global_itr = 0
+
+    ########### train ###########
+    logger.info('********** Started Training **********')
     for ep in range(args.Nepoch):
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
