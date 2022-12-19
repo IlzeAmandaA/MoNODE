@@ -70,6 +70,7 @@ def build_model(args, device, dtype):
                     kernel = args.kernel)
         inv_gp = MLP(args.inv_latent_dim, args.inv_latent_dim, \
             L=args.num_layers, H=args.num_hidden, act='relu') #TODO add as parser args
+        inv_gp = torch.nn.Identity()
 
     else:
         inv_gp = None
