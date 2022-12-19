@@ -8,6 +8,7 @@ import torch.nn as nn
 # 2180016 - not invariant - 2182170
 
 # 2182188 - invariant
+# 2182197 - invariant CNN
 # 2182191 - not invariant
 
 from model.model_misc import build_model, train_model
