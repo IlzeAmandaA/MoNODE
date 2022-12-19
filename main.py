@@ -27,8 +27,11 @@ KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
+ROT_MNIST_DEFAULTS = {'task':'rot_mnist', 'Ntrain':400, 'batch_size':25}
+SIN_DEFAULTS       = {'task':'sin', 'Ntrain':250, 'batch_size':50}
+
 #data
-parser.add_argument('--task', type=str, default='sin', choices=TASKS,
+parser.add_argument('--task', type=str, default='rot_mnist', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
@@ -46,11 +49,11 @@ parser.add_argument('--digit', type=int, default=3,
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=6,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
-parser.add_argument('--num_features', type=int, default=256,
+parser.add_argument('--num_features', type=int, default=100,
                     help="Number of Fourier basis functions (for pathwise sampling from GP)")
 parser.add_argument('--num_inducing', type=int, default=100,
                     help="Number of inducing points for the sparse GP")
@@ -89,7 +92,7 @@ parser.add_argument('--n_filt', type=int, default=8,
 parser.add_argument('--frames', type=int, default=5,
                     help="Number of timesteps used for encoding velocity") 
 parser.add_argument('--decoder_H', type=int, default=100,
-                    help="Number of hidden neurons in decoder") 
+                    help="Number of hidden neurons in MLP decoder") 
 parser.add_argument('--rnn_hidden', type=int, default=10,
                     help="Encoder RNN latent dimensionality") 
 parser.add_argument('--dec_act', type=str, default='relu',
@@ -99,7 +102,7 @@ parser.add_argument('--dec_act', type=str, default='relu',
 #training 
 parser.add_argument('--Nepoch', type=int, default=5000,
                     help="Number of gradient steps for model training")
-parser.add_argument('--batch_size', type=int, default=50,
+parser.add_argument('--batch_size', type=int, default=25,
                     help="batch size")
 parser.add_argument('--lr', type=float, default=0.001,
                     help="Learning rate for model training")
@@ -196,13 +199,14 @@ if __name__ == '__main__':
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(device) # N,T,...
-            [N,T] = tr_minibatch.shape[:2]
-            T_  = min(T, ep//50+5)
-            if T_ < T:
-                N_  = int(N*(T//T_))
-                t0s = torch.randint(0,T-T_,[N_]) 
-                tr_minibatch = tr_minibatch.repeat([N_,1,1])
-                tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
+            if args.task=='sin':
+                [N,T] = tr_minibatch.shape[:2]
+                T_  = min(T, ep//50+5)
+                if T_ < T:
+                    N_  = int(N*(T//T_))
+                    t0s = torch.randint(0,T-T_,[N_]) 
+                    tr_minibatch = tr_minibatch.repeat([N_,1,1])
+                    tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse = compute_loss(invodevae, tr_minibatch, L)
 
             optimizer.zero_grad()

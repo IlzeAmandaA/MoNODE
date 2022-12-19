@@ -61,6 +61,8 @@ def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
 
 
 def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
+    if Xrec.ndim > X.ndim:
+        Xrec = Xrec[0]
     if N is None:
         N = min(X.shape[0],10)
     Xnp = X.detach().cpu().numpy()

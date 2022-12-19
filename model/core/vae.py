@@ -27,7 +27,7 @@ def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
 def build_rot_mnist_cnn_dec(n_filt, n_in):
     out_features = n_filt*4 * 4*4 # encoder output is [4*n_filt,4,4]
     cnn = nn.Sequential(
-        nn.Linear(out_features//4, out_features),
+        nn.Linear(n_in, out_features),
         UnFlatten(4),
         nn.ConvTranspose2d(out_features//16, n_filt*8, kernel_size=3, stride=1, padding=(0,0)),
         nn.BatchNorm2d(n_filt*8),
@@ -265,7 +265,7 @@ class Decoder(nn.Module):
     def forward(self, z, dims):
         #L,N,T,q = x.shape
         #s = self.fc(x.contiguous().view([L*N*T,q]) ) # N*T,q
-        inp  = z.contiguous().view([np.prod(list(z.shape[:-1])),z.shape[-1]])  # L*N*T,q   
+        inp  = z.contiguous().view([np.prod(list(z.shape[:-1])),z.shape[-1]])  # L*N*T,q  
         Xrec = self.net(inp)
         return Xrec.view(dims) # L,N,T,...
     
