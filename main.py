@@ -11,6 +11,7 @@ import torch.nn as nn
 # 2182198 - invariant CNN
 # 2182191 - not invariant
 # 2182214 - small data
+# 2182307 - small data, NN
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils
@@ -44,7 +45,7 @@ parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=4,
+parser.add_argument('--ode_latent_dim', type=int, default=8,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -68,7 +69,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=4,
+parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
