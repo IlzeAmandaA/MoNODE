@@ -162,7 +162,7 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
     nll_meter    = log_utils.CachedRunningAverageMeter(10)
     kl_z0_meter  = log_utils.CachedRunningAverageMeter(10)
     mse_meter    = log_utils.CachedRunningAverageMeter(10)
-    contr_meter   = log_utils.CachedRunningAverageMeter(10)
+    contr_meter  = log_utils.CachedRunningAverageMeter(10)
     time_meter   = log_utils.CachedAverageMeter()
 
     logger.info('********** Started Training **********')

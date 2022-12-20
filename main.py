@@ -12,7 +12,8 @@ import torch.nn as nn
 # 2182307 - small data, NN-inv
 # 2182308 - small data, NN
 
-# 2182607 - gp (4), inv(8)
+# 2183083 - contrastive (neg+pos)
+#  - gp (4), inv(8)
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils

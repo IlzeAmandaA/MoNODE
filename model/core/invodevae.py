@@ -90,11 +90,11 @@ class INVODEVAE(nn.Module):
             # inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
             # 1- discrimination stuff
             qz_st = self.vae.inv_encoder(X) # N,Tinv,q
-            qz_st = qz_st / qz_st.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
             inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
+            qz_st = qz_st / qz_st.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
             N_,T_,q_ = qz_st.shape
             qz_st = qz_st.reshape(N_*T_,q_) # NT,q
-            Z = (qz_st.unsqueeze(0) * qz_st.unsqueeze(1)).sum(-1) # NT, NT
+            Z   = (qz_st.unsqueeze(0) * qz_st.unsqueeze(1)).sum(-1) # NT, NT
             idx = torch.meshgrid(torch.arange(T_),torch.arange(T_))
             idxset0 = torch.cat([idx[0].reshape(-1)+ n*T_ for n in range(N_)])
             idxset1 = torch.cat([idx[1].reshape(-1)+ n*T_ for n in range(N_)])

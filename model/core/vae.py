@@ -18,6 +18,7 @@ def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
             nn.BatchNorm2d(n_filt*2),
             nn.ReLU(),
             nn.Conv2d(n_filt*2, n_filt*4, kernel_size=5, stride=2, padding=(2,2)),
+            nn.BatchNorm2d(n_filt*2), # this is new
             nn.ReLU(),
             Flatten()
         )
@@ -39,6 +40,7 @@ def build_rot_mnist_cnn_dec(n_filt, n_in):
         nn.BatchNorm2d(n_filt*2),
         nn.ReLU(),
         nn.ConvTranspose2d(n_filt*2, 1, kernel_size=5, stride=1, padding=(2,2)),
+        nn.BatchNorm2d(n_filt*2), # this is new
         nn.Sigmoid(),
     )
     return cnn
