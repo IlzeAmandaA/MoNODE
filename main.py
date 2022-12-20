@@ -11,7 +11,7 @@ import torch.nn as nn
 # NN
 # 2184377 - not inv
 # 2184376 - inv
-# 2184373 - inv + contr
+# 2184373/2184531 - inv + contr
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils
@@ -47,7 +47,7 @@ parser.add_argument('--digit', type=int, default=3,
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=4,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
