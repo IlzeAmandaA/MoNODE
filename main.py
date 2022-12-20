@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 # GP
-# 2184378 - not inv
+# 2184378/2184379 - not inv
 # 2184375 - inv
 # 2184374 - inv + contr
 # NN
