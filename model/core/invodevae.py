@@ -88,6 +88,7 @@ class INVODEVAE(nn.Module):
             # 0- default
             qz_st    = self.vae.inv_encoder(X) # N,Tinv,q
             inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
+            contr_learn_loss = torch.zeros(1).to(self.device) * 0.0
             # 1- discrimination stuff
             # qz_st = self.vae.inv_encoder(X) # N,Tinv,q
             # inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
