@@ -89,7 +89,7 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--n_filt', type=int, default=8,
+parser.add_argument('--n_filt', type=int, default=12,
                     help="Number of filters in the cnn")
 parser.add_argument('--frames', type=int, default=5,
                     help="Number of timesteps used for encoding velocity") 

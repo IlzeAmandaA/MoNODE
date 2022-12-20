@@ -176,7 +176,7 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
         rem_pars + list(invodevae.inv_gp.parameters())
     assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
     optimizer = torch.optim.Adam([
-                {'params': rem_pars},
+                {'params': rem_pars, 'lr': args.lr},
                 {'params': ode_pars, 'lr': args.lr*10}
                 ],lr=args.lr)
 
