@@ -173,7 +173,10 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
     ode_pars = list(invodevae.flow.parameters())
     rem_pars = list(invodevae.vae.parameters()) 
     if invodevae.inv_gp is not None:
-        rem_pars + list(invodevae.inv_gp.parameters())
+        rem_pars += list(invodevae.inv_gp.parameters())
+    print(torch.cat([p.reshape(-1) for p in ode_pars]).shape)
+    print(torch.cat([p.reshape(-1) for p in rem_pars]).shape)
+    print(torch.cat([p.reshape(-1) for p in list(invodevae.parameters())]).shape)
     assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
     optimizer = torch.optim.Adam([
                 {'params': rem_pars, 'lr': args.lr},
