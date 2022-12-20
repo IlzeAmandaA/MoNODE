@@ -4,18 +4,14 @@ import argparse
 import torch
 import torch.nn as nn
 
-# 2182188 - invariant
-# 2182198 - invariant CNN
-# 2182191 - not invariant
-# 2182214 - small data
-
-# 2182307 - small data, NN-inv
-# 2182308 - small data, NN
-
-# 2182607 - gp (4), inv(8)
-
-# 2183083 - contrastive (neg+pos)
-# 2183144 - contrastive (pos) - gp (4), inv(8)
+# GP
+# 2184378 - not inv
+# 2184375 - inv
+# 2184374 - inv + contr
+# NN
+# 2184377 - not inv
+# 2184376 - inv
+# 2184373 - inv + contr
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils
@@ -73,7 +69,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
-parser.add_argument('--inv_latent_dim', type=int, default=4,
+parser.add_argument('--inv_latent_dim', type=int, default=0,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
