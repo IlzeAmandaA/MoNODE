@@ -278,11 +278,8 @@ class Decoder(nn.Module):
         x - input [N,T,nc,d,d]   or [N,T,d]
         z - preds [L,N,T,nc,d,d] or [L,N,T,d]
         '''
-        print(X.shape)
-        print(Xhat.shape)
         XL = X.repeat([L]+[1]*X.ndim) # L,N,T,nc,d,d or L,N,T,d
         if self.distribution == 'bernoulli':
-            print('here')
             try:
                 log_p = torch.log(Xhat)*XL + torch.log(1-Xhat)*(1-XL) # L,N,T,nc,d,d
             except:

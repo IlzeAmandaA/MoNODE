@@ -4,9 +4,6 @@ import argparse
 import torch
 import torch.nn as nn
 
-# 2180009 - invariant     - 2182172
-# 2180016 - not invariant - 2182170
-
 # 2182188 - invariant
 # 2182198 - invariant CNN
 # 2182191 - not invariant
@@ -14,6 +11,8 @@ import torch.nn as nn
 
 # 2182307 - small data, NN-inv
 # 2182308 - small data, NN
+
+# 2182607 - gp (4), inv(8)
 
 from model.model_misc import build_model, train_model
 from model.misc import io_utils

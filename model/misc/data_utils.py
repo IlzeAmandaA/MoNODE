@@ -1,10 +1,11 @@
-import os
-import scipy.io as sio
-import numpy as np
+import os, numpy as np, scipy.io as sio
+
 import torch
-from torch.utils import data
-import matplotlib.pyplot as plt
-plt.switch_backend('agg')
+import torch.nn as nn
+from   torch.utils import data
+
+from   model.misc.lv import LotkaVolterra
+
 
 def load_data(args, device, dtype):
 	if args.task=='rot_mnist':
@@ -13,6 +14,8 @@ def load_data(args, device, dtype):
 		trainset, testset = load_mov_mnist_data(args, device, dtype)
 	elif args.task=='sin':
 		trainset, testset = load_sin_data(args, device, dtype)
+	elif args.task=='lv':
+		trainset, testset = load_lv_data(args, device, dtype)
 	else:
 		return ValueError(r'Invalid task {arg.task}')
 	return trainset, testset #, N, T, D
@@ -70,6 +73,7 @@ def load_rot_mnist_data(args, device, dtype):
 	# Generators
 	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
+
 def load_mov_mnist_data(args, device, dtype):
 	N  = args.Ntrain #train
 	Nt = args.Nvalid + N # valid
@@ -78,19 +82,42 @@ def load_mov_mnist_data(args, device, dtype):
 	Xtr, Xtest = data[:N], data[N:]
 	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
-def load_sin_data(args, device, dtype):
-	data_path = os.path.join(args.data_root,'sin-data.pkl')
+
+def __load_data(args, device, dtype, dataset='sin'):
+	assert dataset=='sin' or dataset=='lv'
+	data_path = os.path.join(args.data_root,f'{dataset}-data.pkl')
 	try:
 		X = torch.load(data_path)
 	except:
-		gen_sin_data(data_path, args.Ntrain+args.Nvalid)
+		data_loader_fnc = gen_sin_data if dataset=='sin' else gen_lv_data
+		data_loader_fnc(data_path, args.Ntrain+args.Nvalid)
 		X = torch.load(data_path)
-	try:
-		X = X.to(device).to(dtype)
-	except:
-		X = X[0].to(device).to(dtype)
-		torch.save(X,data_path)
+	X = X.to(device).to(dtype)
 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
+
+
+def load_sin_data(args, device, dtype):
+	return __load_data(args, device, dtype, 'sin')
+
+
+def load_lv_data(args, device, dtype):
+	return __load_data(args, device, dtype, 'lv')
+
+
+# def load_sin_data(args, device, dtype):
+# 	data_path = os.path.join(args.data_root,'sin-data.pkl')
+# 	try:
+# 		X = torch.load(data_path)
+# 	except:
+# 		gen_sin_data(data_path, args.Ntrain+args.Nvalid)
+# 		X = torch.load(data_path)
+# 	try:
+# 		X = X.to(device).to(dtype)
+# 	except:
+# 		X = X[0].to(device).to(dtype)
+# 		torch.save(X,data_path)
+# 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
+
 
 def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1): 
 	phis = torch.rand(N,1) #
@@ -102,4 +129,28 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1):
 	X  = ts.sin() * A
 	X += torch.randn_like(X)*sig
 	X = X.unsqueeze(-1) # N,T,1
+	torch.save(X, data_path)
+
+
+def gen_lv_data(data_path, M, N=5, T=50, dt=.2, sig=.01, w=10):
+	d  = 2 # state dim
+
+	# alpha = (1+torch.arange(M)) / M / .5
+	# gamma = (1+torch.arange(M)) / M / .5 
+	alpha = torch.rand([M]) / .3 + .1
+	gamma = torch.rand([M]) / .3 + .1
+	alpha = alpha.repeat([N]) # NM
+	gamma = gamma.repeat([N]) # NM
+	beta  = 0.5
+	delta = 0.2
+	lotka_volterra = LotkaVolterra(alpha, beta, delta, gamma)
+	
+	x0 = torch.tensor([5.0,2.5]) + w*torch.rand([N*M,d])
+	ts = torch.arange(T) * dt
+	
+	with torch.no_grad():
+		X = lotka_volterra.forward_simulate(x0,ts) # T,NM,d
+		X = X.reshape(T,N,M,d).permute(2,1,0,3) # M,N,T,d
+	std = (X.max(2)[0] - X.min(2)[0]).sqrt().unsqueeze(2) # N,M,1,d
+	X  += torch.randn([M,N,T,d]) * std * sig
 	torch.save(X, data_path)
