@@ -208,7 +208,7 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
             if args.task=='sin':
                 [N,T] = tr_minibatch.shape[:2]
-                T_  = min(T, ep//50+5)
+                T_  = min(T, ep//40+5)
                 if T_ < T:
                     N_  = int(N*(T//T_))
                     t0s = torch.randint(0,T-T_,[N_]) 
@@ -233,15 +233,16 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
 
         with torch.no_grad():
             torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
-            test_elbos,test_mses = [],[]
+            test_elbos,test_mses,lhoods = [],[],[]
             for itr_test,test_batch in enumerate(testset):
                 test_batch = test_batch.to(invodevae.device)
                 test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
-            test_elbos, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
+                lhoods.append(nlhood.item())
+            test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
             logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f} | contr_loss:{:5.3f}'.\
-                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbos, test_mse, contr_meter.avg))   
+                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]

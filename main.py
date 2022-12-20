@@ -92,7 +92,7 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--n_filt', type=int, default=4,
+parser.add_argument('--n_filt', type=int, default=8,
                     help="Number of filters in the cnn")
 parser.add_argument('--frames', type=int, default=5,
                     help="Number of timesteps used for encoding velocity") 
@@ -105,7 +105,7 @@ parser.add_argument('--dec_act', type=str, default='relu',
                     
 
 #training 
-parser.add_argument('--Nepoch', type=int, default=5000,
+parser.add_argument('--Nepoch', type=int, default=2500,
                     help="Number of gradient steps for model training")
 parser.add_argument('--batch_size', type=int, default=25,
                     help="batch size")
