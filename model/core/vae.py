@@ -241,12 +241,12 @@ class InvariantEncoderRNN(EncoderRNN):
     def forward(self, X, ns=5):
         [N,T,d] = X.shape
         Tin = T//2 if self.Tin is None else self.Tin
-        Tin = Tin if T>Tin else T
+        Tin = min(Tin,T)
         X   = X.repeat([ns,1,1])
         t0s = torch.randint(0,T-Tin+1,[ns*N]) 
-        X   = torch.stack([X[n,t0:t0+Tin] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
-        X_out = super().forward(X) # N*ns,enc_out_dim
-        return X_out.reshape(N,ns,self.enc_out_dim)
+        X   = torch.stack([X[n,t0:t0+Tin] for n,t0 in enumerate(t0s)]) # ns*N,T//2,d
+        X_out = super().forward(X) # ns*N,enc_out_dim
+        return X_out.reshape(ns,N,self.enc_out_dim).permute(1,0,2) # N,ns,enc_out_dim
 
 class Decoder(nn.Module):
     def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None, act='relu'):
