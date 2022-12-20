@@ -169,8 +169,16 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
 
     if freeze_dyn:
         freeze_pars(invodevae.flow.parameters())
+    
+    ode_pars = list(invodevae.flow.parameters())
+    rem_pars = list(invodevae.vae.parameters()) + list(invodevae.inv_gp.parameters())
+    assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
+    optimizer = torch.optim.Adam([
+                {'params': rem_pars},
+                {'params': ode_pars, 'lr': args.lr*10}
+                ],lr=args.lr)
 
-    optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
+    # optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
     begin = time.time()
     global_itr = 0
     for ep in range(args.Nepoch):
