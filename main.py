@@ -73,7 +73,7 @@ parser.add_argument('--inv_latent_dim', type=int, default=4,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
-parser.add_argument('--contr_loss', type=eval, default=False,
+parser.add_argument('--contr_loss', type=eval, default=True,
                     help="Contrastive training of the invariant encoder")
 
 
