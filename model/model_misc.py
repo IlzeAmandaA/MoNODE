@@ -209,7 +209,7 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
                 test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
-            test_elbos, test_mse = np.mean(np.array(test_mses)),np.mean(np.array(test_mses))
+            test_elbos, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
             logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f} | contr_loss:{:5.3f}'.\
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbos, test_mse, contr_meter.avg))   
 
