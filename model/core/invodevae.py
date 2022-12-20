@@ -86,32 +86,16 @@ class INVODEVAE(nn.Module):
         #encode content (invariance)
         if self.is_inv:
             # 0- default
-            # qz_st    = self.vae.inv_encoder(X) # N,Tinv,q
-            # inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
-            # contr_learn_loss = torch.zeros(1).to(self.device) * 0.0
-            # 1- discrimination stuff
             qz_st = self.vae.inv_encoder(X) # N,Tinv,q
             inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
-            qz_st = qz_st / qz_st.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
-            N_,T_,q_ = qz_st.shape
-            qz_st = qz_st.reshape(N_*T_,q_) # NT,q
-            Z   = (qz_st.unsqueeze(0) * qz_st.unsqueeze(1)).sum(-1) # NT, NT
-            idx = torch.meshgrid(torch.arange(T_),torch.arange(T_))
-            idxset0 = torch.cat([idx[0].reshape(-1)+ n*T_ for n in range(N_)])
-            idxset1 = torch.cat([idx[1].reshape(-1)+ n*T_ for n in range(N_)])
-            pos = Z[idxset0,idxset1].sum()
-            Z[idxset0,idxset1] *= 0
-            neg = Z.sum() * 0.0
-            contr_learn_loss = neg-pos
-            # 2- gp last layer
+            # 1- gp last layer
             # _,Tinv,q = qz_st.shape
             # qz_st    = qz_st.reshape(N*Tinv, q)
             # mean,var = self.inv_gp.build_conditional(qz_st)
             # dist     = torch.distributions.Normal(mean,var)
             # inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,Tinv,-1).mean(-2) # L,N,q
         else:
-            inv_z_st = None
-            contr_learn_loss = torch.zeros(1).to(self.device) * 0.0
+            qz_st,inv_z_st = None,None
 
         if self.aug:
             ztL  = self.sample_augmented_trajectories(z0, inv_z_st, T, L) # L,N,T,2q
@@ -121,4 +105,4 @@ class INVODEVAE(nn.Module):
             ztL  = self.sample_trajectories(z0,T,L) # L,N,T,2q
             Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], inv_z_st)
 
-        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), contr_learn_loss
+        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), qz_st

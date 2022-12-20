@@ -127,7 +127,21 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
 
     return lhood.mean(), kl_z0.mean(), kl_gp_2 
 
-def compute_loss(model, data, L, seed=None):
+def contrastive_loss(qz_st):
+    qz_st = qz_st / qz_st.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
+    N_,T_,q_ = qz_st.shape
+    qz_st = qz_st.reshape(N_*T_,q_) # NT,q
+    Z   = (qz_st.unsqueeze(0) * qz_st.unsqueeze(1)).sum(-1) # NT, NT
+    idx = torch.meshgrid(torch.arange(T_),torch.arange(T_))
+    idxset0 = torch.cat([idx[0].reshape(-1)+ n*T_ for n in range(N_)])
+    idxset1 = torch.cat([idx[1].reshape(-1)+ n*T_ for n in range(N_)])
+    pos = Z[idxset0,idxset1].sum()
+    # Z[idxset0,idxset1] *= 0
+    # neg = Z.sum() * 0.0
+    # contr_learn_loss = neg-pos
+    return -pos
+
+def compute_loss(model, data, L, seed=None, contr_loss=False):
     """
     Compute loss for optimization
     @param model: a odegpvae object
@@ -138,8 +152,12 @@ def compute_loss(model, data, L, seed=None):
     """
     T = data.shape[1]
     in_data = data if seed==None else data[:,:seed]
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), contr_learn_loss = model(in_data, L, T_custom=T)
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), qz_st = model(in_data, L, T_custom=T)
     lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
+    if contr_loss:
+        contr_learn_loss = contrastive_loss(qz_st)
+    else:
+        contr_learn_loss = torch.zeros_like(lhood)
     lhood = lhood * model.num_observations
     kl_z0 = kl_z0 * model.num_observations
     loss  = - lhood + kl_z0 + kl_gp + contr_learn_loss
@@ -170,17 +188,18 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
     if freeze_dyn:
         freeze_pars(invodevae.flow.parameters())
     
-    ode_pars = list(invodevae.flow.parameters())
-    rem_pars = list(invodevae.vae.parameters()) 
-    if invodevae.inv_gp is not None:
-        rem_pars += list(invodevae.inv_gp.parameters())
-    assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
-    optimizer = torch.optim.Adam([
-                {'params': rem_pars, 'lr': args.lr},
-                {'params': ode_pars, 'lr': args.lr*10}
-                ],lr=args.lr)
-
-    # optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
+    if args.de=='SVGP':
+        ode_pars = list(invodevae.flow.parameters())
+        rem_pars = list(invodevae.vae.parameters()) 
+        if invodevae.inv_gp is not None:
+            rem_pars += list(invodevae.inv_gp.parameters())
+        assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
+        optimizer = torch.optim.Adam([
+                    {'params': rem_pars, 'lr': args.lr},
+                    {'params': ode_pars, 'lr': args.lr*10}
+                    ],lr=args.lr)
+    else:
+        optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
     begin = time.time()
     global_itr = 0
     for ep in range(args.Nepoch):
@@ -195,7 +214,8 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
                     t0s = torch.randint(0,T-T_,[N_]) 
                     tr_minibatch = tr_minibatch.repeat([N_,1,1])
                     tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
-            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = compute_loss(invodevae, tr_minibatch, L)
+            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
+                compute_loss(invodevae, tr_minibatch, L, contr_loss=args.contr_loss)
 
             optimizer.zero_grad()
             loss.backward() 

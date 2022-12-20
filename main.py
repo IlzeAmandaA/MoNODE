@@ -77,6 +77,9 @@ parser.add_argument('--inv_latent_dim', type=int, default=4,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
+parser.add_argument('--contr_loss', type=eval, default=False,
+                    help="Contrastive training of the invariant encoder")
+
 
 #ode stuff
 parser.add_argument('--order', type=int, default=1,
@@ -89,7 +92,7 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--n_filt', type=int, default=8,
+parser.add_argument('--n_filt', type=int, default=4,
                     help="Number of filters in the cnn")
 parser.add_argument('--frames', type=int, default=5,
                     help="Number of timesteps used for encoding velocity") 
