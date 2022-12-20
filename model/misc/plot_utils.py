@@ -4,6 +4,9 @@ import torch
 import os
 from pathlib import Path
 
+import matplotlib.colors as mcolors
+palette = list(mcolors.TABLEAU_COLORS.keys())
+
 def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     testset, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter):
 
@@ -100,8 +103,8 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
         Qpca = Q.detach().cpu().numpy()
     plt.figure(1,(5,5))
     for n in range(Nplot):
-        plt.plot(Qpca[n,:,0], Qpca[n,:,1], '*-', markersize=6)
-        plt.plot(Qpca[n,0,0], Qpca[n,0,1], '+', markersize=10)
+        plt.plot(Qpca[n,:,0], Qpca[n,:,1], '*-', markersize=6, color=palette[n])
+        plt.plot(Qpca[n,0,0], Qpca[n,0,1], '*', markersize=15, color=palette[n])
     if q>2:
         plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
         plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
