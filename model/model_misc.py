@@ -5,11 +5,13 @@ import sys
 
 from model.core.svgp import SVGP_Layer
 from model.core.mlp import MLP
-from model.core.deepgp import DeepGP
 from model.core.flow import Flow
 from model.core.vae import VAE
+from model.core.inv_enc import INV_ENC
 from model.core.invodevae import INVODEVAE
-from model.core.sgp import SGP
+
+from model.misc import log_utils 
+from model.misc.plot_utils import plot_results
 
 
 def build_model(args, device, dtype):
@@ -22,7 +24,7 @@ def build_model(args, device, dtype):
 
     #differential function
     aug = args.task=='sin' and args.inv_latent_dim>0
-    if aug:
+    if aug: # augmented dynamics
         D_in  = args.ode_latent_dim + args.inv_latent_dim
         D_out = int(args.ode_latent_dim / args.order)
     else:
@@ -43,42 +45,32 @@ def build_model(args, device, dtype):
         de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
     
     elif args.de == 'MLP':
-        de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') #TODO add as parser args
-    
-    elif args.de == 'SGP': # does not work at all
-        Z  = torch.randn(args.num_inducing, D_in)
-        u_var = 'diag' if args.q_diag else 'chol'
-        de = SGP(Z, D_out, kernel=args.kernel, whitened=True, u_var=u_var)
-        de = de.to(device).to(dtype)
+        de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') 
 
-    else:
-        print('Invalid Differential Euqation model specified')
-        sys.exit()
-
-    #marginal invariance
- 
     if args.inv_latent_dim>0:
-        # gp = DeepGP(args.D_in, args.D_out, args.num_inducing_inv)
-        inv_gp = SVGP_Layer(D_in=args.inv_latent_dim, 
-                    D_out=args.inv_latent_dim, #2q, q
-                    M=args.num_inducing_inv,
-                    S=args.num_features,
-                    dimwise=args.dimwise,
-                    q_diag=args.q_diag,
-                    device=device,
-                    dtype=dtype,
-                    kernel = args.kernel)
-        inv_gp = MLP(args.inv_latent_dim, args.inv_latent_dim, \
-            L=args.num_layers, H=args.num_hidden, act='relu') #TODO add as parser args
-        inv_gp = MLP(args.inv_latent_dim, args.inv_latent_dim, L=0, ) #TODO add as parser args
+        if args.inv_fnc == 'SVGP':
+            last_layer_gp = SVGP_Layer(D_in=args.inv_latent_dim, 
+                        D_out=args.inv_latent_dim, #2q, q
+                        M=args.num_inducing_inv,
+                        S=args.num_features,
+                        dimwise=args.dimwise,
+                        q_diag=args.q_diag,
+                        device=device,
+                        dtype=dtype,
+                        kernel = args.kernel)
+        else:
+            last_layer_gp = None
+        
+        inv_enc = INV_ENC(task=args.task, last_layer_gp=last_layer_gp, inv_latent_dim=args.inv_latent_dim,
+            n_filt=args.n_filt, rnn_hidden=10, device=device).to(dtype)
 
     else:
-        inv_gp = None
+        inv_enc = None
 
-    #continous latent ode 
+    # latent ode 
     flow = Flow(diffeq=de, order=args.order, solver=args.solver, use_adjoint=args.use_adjoint)
 
-    #encoder & decoder
+    # encoder & decoder
     vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
             dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
             inv_latent_dim=args.inv_latent_dim, order=args.order, device=device).to(dtype)
@@ -86,7 +78,7 @@ def build_model(args, device, dtype):
     #full model
     inodevae = INVODEVAE(flow = flow,
                         vae = vae,
-                        inv_gp = inv_gp,
+                        inv_enc = inv_enc,
                         num_observations = args.Ntrain,
                         order = args.order,
                         steps = args.frames,
@@ -120,18 +112,21 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     else:
         kl_gp = 0.0 * torch.zeros(1).to(X.device)
 
-    if model.inv_gp is not None:
-        kl_gp_2 = model.inv_gp.kl() + kl_gp
+    if model.inv_enc is not None:
+        kl_gp_2 = model.inv_enc.kl().to(X.device) + kl_gp
     else:
         kl_gp_2 = kl_gp
 
     return lhood.mean(), kl_z0.mean(), kl_gp_2 
 
-def contrastive_loss(qz_st):
-    qz_st = qz_st / qz_st.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
-    N_,T_,q_ = qz_st.shape
-    qz_st = qz_st.reshape(N_*T_,q_) # NT,q
-    Z   = (qz_st.unsqueeze(0) * qz_st.unsqueeze(1)).sum(-1) # NT, NT
+
+def contrastive_loss(C):
+    ''' C - invariant embeddings [N,T,q] or [L,N,T,q] '''
+    C = C.mean(0) if C.ndim==4 else C
+    C = C / C.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
+    N_,T_,q_ = C.shape
+    C = C.reshape(N_*T_,q_) # NT,q
+    Z   = (C.unsqueeze(0) * C.unsqueeze(1)).sum(-1) # NT, NT
     idx = torch.meshgrid(torch.arange(T_),torch.arange(T_))
     idxset0 = torch.cat([idx[0].reshape(-1)+ n*T_ for n in range(N_)])
     idxset1 = torch.cat([idx[1].reshape(-1)+ n*T_ for n in range(N_)])
@@ -141,21 +136,22 @@ def contrastive_loss(qz_st):
     # contr_learn_loss = neg-pos
     return -pos
 
+
 def compute_loss(model, data, L, seed=None, contr_loss=False):
     """
     Compute loss for optimization
     @param model: a odegpvae object
     @param data: true observation sequence 
     @param L: number of MC samples
-    @param Ndata: number of training data points 
+    @param contr_loss: whether to compute contrastive loss or not
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
     in_data = data if seed==None else data[:,:seed]
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), qz_st = model(in_data, L, T_custom=T)
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
     lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
     if contr_loss:
-        contr_learn_loss = contrastive_loss(qz_st)
+        contr_learn_loss = contrastive_loss(C)
     else:
         contr_learn_loss = torch.zeros_like(lhood)
     lhood = lhood * model.num_observations
@@ -163,6 +159,7 @@ def compute_loss(model, data, L, seed=None, contr_loss=False):
     loss  = - lhood + kl_z0 + kl_gp + contr_learn_loss
     mse   = torch.mean((Xrec-data)**2)
     return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
+
 
 def freeze_pars(par_list):
     for par in par_list:
@@ -172,9 +169,8 @@ def freeze_pars(par_list):
             print('something wrong!')
             raise ValueError('This is not a parameter!?')
 
+
 def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=False):
-    from model.misc import log_utils 
-    from model.misc.plot_utils import plot_results
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
     elbo_meter   = log_utils.CachedRunningAverageMeter(10)
     nll_meter    = log_utils.CachedRunningAverageMeter(10)
@@ -187,19 +183,28 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
 
     if freeze_dyn:
         freeze_pars(invodevae.flow.parameters())
-    
-    if args.de=='SVGP':
-        ode_pars = list(invodevae.flow.parameters())
-        rem_pars = list(invodevae.vae.parameters()) 
-        if invodevae.inv_gp is not None:
-            rem_pars += list(invodevae.inv_gp.parameters())
-        assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
-        optimizer = torch.optim.Adam([
+
+    ############## build the optimizer
+    gp_pars  = [par for name,par in invodevae.named_parameters() if 'SVGP' in name]
+    rem_pars = [par for name,par in invodevae.named_parameters() if 'SVGP' not in name]
+    assert len(gp_pars)+len(rem_pars) == len(list(invodevae.parameters()))
+    optimizer = torch.optim.Adam([
                     {'params': rem_pars, 'lr': args.lr},
-                    {'params': ode_pars, 'lr': args.lr*10}
+                    {'params': gp_pars, 'lr': args.lr*10}
                     ],lr=args.lr)
-    else:
-        optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
+    
+    # if args.de=='SVGP':
+    #     ode_pars = list(invodevae.flow.parameters())
+    #     rem_pars = list(invodevae.vae.parameters()) 
+    #     if invodevae.inv_gp is not None:
+    #         rem_pars += list(invodevae.inv_gp.parameters())
+    #     assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
+    #     optimizer = torch.optim.Adam([
+    #                 {'params': rem_pars, 'lr': args.lr},
+    #                 {'params': ode_pars, 'lr': args.lr*10}
+    #                 ],lr=args.lr)
+    # else:
+    #     optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
     begin = time.time()
     global_itr = 0
     for ep in range(args.Nepoch):

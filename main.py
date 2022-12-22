@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 
 # GP
-# 2184378/2184379 - not inv
+# 2184379 - not inv
 # 2184375 - inv
-# 2184374 - inv + contr
+# 2184374/2185002 - inv + contr
 # NN
 # 2184377 - not inv
 # 2184376 - inv
@@ -19,7 +19,8 @@ from model.misc.torch_utils import seed_everything
 from model.misc.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
-DE_MODELS = ['MLP', 'SVGP', 'SGP']
+DE_MODELS = ['MLP', 'SVGP']
+INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
@@ -29,7 +30,7 @@ parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 # BATCH_SIZE_DEFAULTS = {'rot_mnist':25,  'mov_mnist':25,  'sin':50}
 
 #data
-parser.add_argument('--task', type=str, default='sin', choices=TASKS,
+parser.add_argument('--task', type=str, default='rot_mnist', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
@@ -47,7 +48,7 @@ parser.add_argument('--digit', type=int, default=3,
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=4,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='SVGP', choices=DE_MODELS,
+parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
 parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
                     help="ODE solver for numerical integration")
@@ -69,13 +70,14 @@ parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 #inavariance gp
+parser.add_argument('--inv_fnc', type=str, default='MLP', choices=INV_FNCS,
+                    help="Invariant function")
 parser.add_argument('--inv_latent_dim', type=int, default=4,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 parser.add_argument('--contr_loss', type=eval, default=True,
                     help="Contrastive training of the invariant encoder")
-
 
 #ode stuff
 parser.add_argument('--order', type=int, default=1,

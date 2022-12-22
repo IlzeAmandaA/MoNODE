@@ -96,8 +96,6 @@ class VAE(nn.Module):
             lhood_distribution = 'bernoulli'
             self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
             self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
-            if inv_latent_dim>0:
-                self.inv_encoder = InvariantEncoderCNN(task, 'dirac', inv_latent_dim, n_filt).to(device)
             if order==2:
                 self.encoder_v   = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
 
@@ -106,8 +104,6 @@ class VAE(nn.Module):
             data_dim = 1
             self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
             self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
-            if inv_latent_dim>0:
-                self.inv_encoder = InvariantEncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
             if order==2:
                 self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 
@@ -143,6 +139,10 @@ class AbstractEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.sp = nn.Softplus()
+    
+    @property
+    def device(self):
+        return self.sp.device
 
     def sample(self, mu, std, L=1):
         ''' mu,std  - [N,q]
@@ -167,9 +167,9 @@ class AbstractEncoder(nn.Module):
         return self.sp.device
 
 
-class CNNEncoder(AbstractEncoder):
+class EncoderCNN(AbstractEncoder):
     def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):
-        super(CNNEncoder, self).__init__()
+        super(EncoderCNN, self).__init__()
         self.enc_out_dim = enc_out_dim
         self.out_distr  = out_distr
         if task=='rot_mnist':
@@ -193,13 +193,13 @@ class CNNEncoder(AbstractEncoder):
         else:
             return z0_mu
 
-class PositionEncoderCNN(CNNEncoder):
+class PositionEncoderCNN(EncoderCNN):
     def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):
         super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels)
     def forward(self,X):
         return super().forward(X[:,0])
 
-class VelocityEncoderCNN(CNNEncoder):
+class VelocityEncoderCNN(EncoderCNN):
     def __init__(self, num_frames, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):
         super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels)
         self.num_frames = num_frames
@@ -207,15 +207,6 @@ class VelocityEncoderCNN(CNNEncoder):
         [N,T,nc,d,d] = X.shape
         X_in = X[:,:self.num_frames].reshape(N, self.num_frames*nc, d, d)
         return super().forward(X_in)
-
-class InvariantEncoderCNN(CNNEncoder):
-    def __init__(self, task, out_distr='dirac', enc_out_dim=16, n_filt=8, n_in_channels=1):
-        super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels)
-    def forward(self,X):
-        [N,T,nc,d,d] = X.shape
-        X = X.reshape(N*T,nc,d,d)
-        X_out = super().forward(X) # N*T,_
-        return X_out.reshape(N,T,self.enc_out_dim)
 
 class EncoderRNN(AbstractEncoder):
     def __init__(self, input_dim, Tin=None, rnn_hidden=10, enc_out_dim=16, out_distr='normal'):
@@ -234,19 +225,6 @@ class EncoderRNN(AbstractEncoder):
             z0_log_sig = self.sp(z0_log_sig)
             return z0_mu, z0_log_sig
         return outputs
-
-class InvariantEncoderRNN(EncoderRNN):
-    def __init__(self, input_dim, Tin=None, rnn_hidden=10, enc_out_dim=16, out_distr='dirac'):
-        super(InvariantEncoderRNN, self).__init__(input_dim, Tin=Tin, rnn_hidden=rnn_hidden, enc_out_dim=enc_out_dim, out_distr=out_distr)
-    def forward(self, X, ns=5):
-        [N,T,d] = X.shape
-        Tin = T//2 if self.Tin is None else self.Tin
-        Tin = min(Tin,T)
-        X   = X.repeat([ns,1,1])
-        t0s = torch.randint(0,T-Tin+1,[ns*N]) 
-        X   = torch.stack([X[n,t0:t0+Tin] for n,t0 in enumerate(t0s)]) # ns*N,T//2,d
-        X_out = super().forward(X) # ns*N,enc_out_dim
-        return X_out.reshape(ns,N,self.enc_out_dim).permute(1,0,2) # N,ns,enc_out_dim
 
 class Decoder(nn.Module):
     def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None, act='relu'):

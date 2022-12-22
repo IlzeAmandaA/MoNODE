@@ -3,13 +3,13 @@ import torch.nn as nn
 
  
 class INVODEVAE(nn.Module):
-    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_gp=None, aug=False) -> None:
+    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_enc=None, aug=False) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
         self.num_observations = num_observations
         self.vae = vae
-        self.inv_gp = inv_gp
+        self.inv_enc = inv_enc
         self.dt = dt
         self.v_steps = steps
         self.order = order
@@ -21,29 +21,30 @@ class INVODEVAE(nn.Module):
 
     @property
     def is_inv(self):
-        return self.inv_gp is not None
+        return self.inv_enc is not None
 
-    def build_decoding(self, ztL, dims, inv_z=None):
+    def build_decoding(self, ztL, dims, c=None):
         """
         Given a mean of the latent space decode the input back into the original space.
 
         @param ztL: latent variable (L,N,T,q)
         @param inv_z: invaraiant latent variable (L,N,q)
         @param dims: dimensionality of the original variable 
+        @param c: invariant code (L,N,q)
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
+        assert c is None or c.ndim==3, 'wrong input dimensionality!'
         if self.order == 1:
-            st_muL = ztL
+            stL = ztL
         elif self.order == 2:
             q = ztL.shape[-1]//2
-            st_muL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
+            stL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
-        if inv_z is not None:
-            inv_z_L = torch.stack([inv_z]*ztL.shape[2],-2) # L,N,T,q
-            st = torch.cat([st_muL, inv_z_L], -1) #L,N,T,2q
-        else:
-            st = st_muL
-        Xrec = self.vae.decoder(st, dims) # L,N,T,...
+        if c is not None:
+            cL = torch.stack([c]*ztL.shape[2],-2) # L,N,T,q
+            stL = torch.cat([stL, cL], -1) #L,N,T,2q
+
+        Xrec = self.vae.decoder(stL, dims) # L,N,T,...
         return Xrec
     
     def sample_trajectories(self, z0, T, L=1):
@@ -56,6 +57,10 @@ class INVODEVAE(nn.Module):
         return torch.stack(ztL) # L,N,T,2q
 
     def sample_augmented_trajectories(self, z0, zc, T, L=1):
+        '''
+            z0 - initial values [N,q]  or [L,N,q]
+            zc - invariant code [N,q2] or [L,N,q2]
+        '''
         ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0.device)
         z0L = torch.stack([z0]*L) if z0.ndim==2 else z0
         zcL = torch.stack([zc]*L) if zc.ndim==2 else zc
@@ -63,11 +68,10 @@ class INVODEVAE(nn.Module):
         return torch.stack(ztL) # L,N,T,2q
 
     def forward(self, X, L=1, T_custom=None):
-        if self.is_inv:
-            try:
-                self.inv_gp.build_cache()
-            except:
-                pass
+        try:
+            self.inv_enc.last_layer_gp.build_cache()
+        except:
+            pass
 
         [N,T] = X.shape[:2]
         if T_custom:
@@ -85,24 +89,17 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         if self.is_inv:
-            # 0- default
-            qz_st = self.vae.inv_encoder(X) # N,Tinv,q
-            inv_z_st = self.inv_gp(qz_st).mean(-2).repeat([L,1,1]) # L,N,q
-            # 1- gp last layer
-            # _,Tinv,q = qz_st.shape
-            # qz_st    = qz_st.reshape(N*Tinv, q)
-            # mean,var = self.inv_gp.build_conditional(qz_st)
-            # dist     = torch.distributions.Normal(mean,var)
-            # inv_z_st = dist.rsample(torch.Size([L])).reshape(L,N,Tinv,-1).mean(-2) # L,N,q
+            C = self.inv_enc(X, L=L) # embeddings [L,N,T,q]
+            c = C.mean(2) # time-invariant code [L,N,q]
         else:
-            qz_st,inv_z_st = None,None
+            C,c = None, None
 
         if self.aug:
-            ztL  = self.sample_augmented_trajectories(z0, inv_z_st, T, L) # L,N,T,2q
+            ztL  = self.sample_augmented_trajectories(z0, c, T, L) # L,N,T,2q
             Xrec = self.build_decoding(ztL, [L,N,T,-1])
         else:
             #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,N,T,2q
-            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], inv_z_st)
+            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], c)
 
-        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), qz_st
+        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C
