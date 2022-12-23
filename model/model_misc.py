@@ -172,12 +172,12 @@ def freeze_pars(par_list):
 
 def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=False):
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
-    elbo_meter   = log_utils.CachedRunningAverageMeter(10)
-    nll_meter    = log_utils.CachedRunningAverageMeter(10)
-    kl_z0_meter  = log_utils.CachedRunningAverageMeter(10)
-    mse_meter    = log_utils.CachedRunningAverageMeter(10)
-    contr_meter  = log_utils.CachedRunningAverageMeter(10)
-    time_meter   = log_utils.CachedAverageMeter()
+    elbo_meter  = log_utils.CachedRunningAverageMeter(10)
+    nll_meter   = log_utils.CachedRunningAverageMeter(10)
+    kl_z0_meter = log_utils.CachedRunningAverageMeter(10)
+    mse_meter   = log_utils.CachedRunningAverageMeter(10)
+    contr_meter = log_utils.CachedRunningAverageMeter(10)
+    time_meter  = log_utils.CachedAverageMeter()
 
     logger.info('********** Started Training **********')
 
@@ -192,19 +192,6 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
                     {'params': rem_pars, 'lr': args.lr},
                     {'params': gp_pars, 'lr': args.lr*10}
                     ],lr=args.lr)
-    
-    # if args.de=='SVGP':
-    #     ode_pars = list(invodevae.flow.parameters())
-    #     rem_pars = list(invodevae.vae.parameters()) 
-    #     if invodevae.inv_gp is not None:
-    #         rem_pars += list(invodevae.inv_gp.parameters())
-    #     assert len(ode_pars)+len(rem_pars) == len(list(invodevae.parameters()))
-    #     optimizer = torch.optim.Adam([
-    #                 {'params': rem_pars, 'lr': args.lr},
-    #                 {'params': ode_pars, 'lr': args.lr*10}
-    #                 ],lr=args.lr)
-    # else:
-    #     optimizer = torch.optim.Adam(invodevae.parameters(),lr=args.lr)
     begin = time.time()
     global_itr = 0
     for ep in range(args.Nepoch):
@@ -250,9 +237,9 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]
+                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=3*tr_minibatch.shape[1])[:2]
                 Xrec_te, ztL_te = invodevae(test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])[:2]
 
-                plot_results(plotter, args, ztL_tr[0,:,:,:], Xrec_tr.squeeze(0), tr_minibatch, ztL_te[0,:,:,:], \
+                plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
                     Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
     

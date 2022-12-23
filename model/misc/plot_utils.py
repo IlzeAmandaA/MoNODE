@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.colors as mcolors
 palette = list(mcolors.TABLEAU_COLORS.keys())
 
+
 def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     testset, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter):
 
@@ -17,6 +18,7 @@ def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     plotter.plot_latent(ztl_te, 'test')
 
     plot_trace(elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter, args) # logpL_meter, logztL_meter, args)
+
 
 class Plotter:
 	def __init__(self, root, task_name):
@@ -39,6 +41,7 @@ class Plotter:
 		fname = self.task_name + '_latents_' + fname + '.png'
 		fname = os.path.join(self.path_prefix, fname)
 		self.plot_latent_fnc(z, fname=fname)
+
 
 def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
     ''' X    - [N,T,d] 
@@ -92,19 +95,20 @@ def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
 
 
 def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)
-    [N,T,q] = Q.squeeze(0).shape 
+    [L,N,T,q] = Q.shape 
     if q>2:
-        Q = Q.reshape(N*T,q)
+        Q = Q.reshape(L*N*T,q)
         U,S,V = torch.pca_lowrank(Q, q=min(q,10))
         Qpca = Q @ V[:,:2] 
-        Qpca = Qpca.reshape(N,T,2).detach().cpu().numpy() # N,T,2
+        Qpca = Qpca.reshape(L,N,T,2).detach().cpu().numpy() # L,N,T,2
         S = S / S.sum()
     else:
         Qpca = Q.detach().cpu().numpy()
     plt.figure(1,(5,5))
     for n in range(Nplot):
-        plt.plot(Qpca[n,:,0], Qpca[n,:,1], '*-', markersize=6, color=palette[n])
-        plt.plot(Qpca[n,0,0], Qpca[n,0,1], '*', markersize=15, color=palette[n])
+        for l in range(L):
+            plt.plot(Qpca[l,n,:,0], Qpca[l,n,:,1], '*-', markersize=2, lw=0.5, color=palette[n])
+            plt.plot(Qpca[l,n,0,0], Qpca[l,n,0,1], '*', markersize=15, color=palette[n])
     if q>2:
         plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
         plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)
@@ -114,6 +118,7 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
     else:
         plt.savefig(fname)
         plt.close()
+
 
 def plot_trace(elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter, args, make_plot=False): 
     fig, axs = plt.subplots(5, 1, figsize=(10, 10))
