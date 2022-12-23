@@ -115,7 +115,7 @@ parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
 parser.add_argument('--plot_every', type=int, default=100,
                     help="How often plot the training")
-parser.add_argument('--plotL', type=int, default=16,
+parser.add_argument('--plotL', type=int, default=2,
                     help="Number of MC draws for plotting")
 
 #log 
