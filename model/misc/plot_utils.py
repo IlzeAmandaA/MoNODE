@@ -141,4 +141,5 @@ def plot_trace(args, elbo_meter=None, nll_meter=None,  kl_z0_meter=None, inducin
         np.save(os.path.join(args.save, 'elbo.npy'), np.stack((elbo_meter.iters, elbo_meter.vals), axis=1))
         np.save(os.path.join(args.save, 'nll.npy'), np.stack((nll_meter.iters, nll_meter.vals), axis=1))
         np.save(os.path.join(args.save, 'zkl.npy'), np.stack((kl_z0_meter.iters, kl_z0_meter.vals), axis=1))
-        np.save(os.path.join(args.save, 'inducingkl.npy'), np.stack((inducing_kl_meter.iters,inducing_kl_meter.vals), axis=1))
+        if inducing_kl_meter is not None:
+            np.save(os.path.join(args.save, 'inducingkl.npy'), np.stack((inducing_kl_meter.iters,inducing_kl_meter.vals), axis=1))
