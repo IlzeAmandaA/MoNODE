@@ -18,6 +18,10 @@ class INVODEVAE(nn.Module):
     @property
     def device(self):
         return self.flow.device
+    
+    @property
+    def dtype(self):
+        return list(self.parameters())[0].dtype
 
     @property
     def is_inv(self):

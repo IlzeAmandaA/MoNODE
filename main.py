@@ -13,7 +13,7 @@ import torch.nn as nn
 # 2184376 - inv
 # 2184373/2184531 - inv + contr
 
-from model.model_misc import build_model, train_model
+from model.model_misc import build_model, train_model, train_mov_mnist
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from model.misc.data_utils import load_data
@@ -30,23 +30,23 @@ parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 # BATCH_SIZE_DEFAULTS = {'rot_mnist':25,  'mov_mnist':25,  'sin':50}
 
 #data
-parser.add_argument('--task', type=str, default='rot_mnist', choices=TASKS,
+parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
                     help="Experiment type")
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=360,
+parser.add_argument('--Ntrain', type=int, default=2500,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=40,
+parser.add_argument('--Nvalid', type=int, default=100,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
-parser.add_argument('--digit', type=int, default=3,
+parser.add_argument('--digit', type=int, default=5,
                     help="Rotating MNIST digit (train data)")
 
 #de model
-parser.add_argument('--ode_latent_dim', type=int, default=4,
+parser.add_argument('--ode_latent_dim', type=int, default=10,
                     help="Latent ODE dimensionality")
 parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
                     help="Model type to learn the DE")
@@ -72,7 +72,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
 #inavariance
 parser.add_argument('--inv_fnc', type=str, default='MLP', choices=INV_FNCS,
                     help="Invariant function")
-parser.add_argument('--inv_latent_dim', type=int, default=8,
+parser.add_argument('--inv_latent_dim', type=int, default=10,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -184,9 +184,16 @@ if __name__ == '__main__':
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2180016/invodevae.pth'
+    # train_model(args, invodevae, plotter, trainset, testset, logger)
+    train_mov_mnist(args, invodevae, plotter, trainset, testset, logger)
+
+
+
+
+
+    ### additional experiments
+    # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2196031/invodevae.pth'
     # fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180009/invodevae.pth'
     # invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
     # train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
 
-    train_model(args, invodevae, plotter, trainset, testset, logger)

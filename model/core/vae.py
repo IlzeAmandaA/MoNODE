@@ -112,6 +112,15 @@ class VAE(nn.Module):
         self.ode_latent_dim = ode_latent_dim
         self.order = order
 
+    def reset_parameters(self):
+        modules = [self.encoder, self.decoder]
+        if self.order==2:
+            modules += [self.encoder_v]
+        for module in modules:
+            for layer in module.children():
+                if hasattr(layer, 'reset_parameters'):
+                    layer.reset_parameters()
+
     def print_summary(self):
         """Print the summary of both the models: encoder and decoder"""
         summary(self.encoder, (1, *(28,28)))

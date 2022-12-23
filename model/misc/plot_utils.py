@@ -17,7 +17,7 @@ def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     plotter.plot_latent(ztl_tr, 'tr')
     plotter.plot_latent(ztl_te, 'test')
 
-    plot_trace(elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter, args) # logpL_meter, logztL_meter, args)
+    plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter) # logpL_meter, logztL_meter, args)
 
 
 class Plotter:
@@ -120,15 +120,16 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
         plt.close()
 
 
-def plot_trace(elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter, args, make_plot=False): 
+def plot_trace(args, elbo_meter=None, nll_meter=None,  kl_z0_meter=None, inducing_kl_meter=None, mse_meter=None, make_plot=False): 
     fig, axs = plt.subplots(5, 1, figsize=(10, 10))
 
     titles = ["Loss (-elbo)", "Obs NLL", "KL-z0", "KL-U", "MSE"]
     meters = [elbo_meter, nll_meter,  kl_z0_meter, inducing_kl_meter, mse_meter]
     for ax,title,meter in zip(axs,titles,meters):
-        ax.plot(meter.iters, meter.vals)
-        ax.set_title(title)
-        ax.grid()
+        if meter is not None:
+            ax.plot(meter.iters, meter.vals)
+            ax.set_title(title)
+            ax.grid()
 
     fig.subplots_adjust()
     if make_plot:
