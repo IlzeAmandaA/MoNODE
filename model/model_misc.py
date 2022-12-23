@@ -364,7 +364,7 @@ def train_mov_mnist(args, invodevae, plotter, trainset, testset, logger):
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = model_forward(invodevae, tr_minibatch, L=args.plotL, T_custom=3*tr_minibatch.shape[1])[:2]
+                Xrec_tr, ztL_tr = model_forward(invodevae, tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]
                 Xrec_te, ztL_te = model_forward(invodevae, test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])[:2]
 
                 plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
