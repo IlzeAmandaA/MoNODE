@@ -72,7 +72,7 @@ parser.add_argument('--num_hidden', type=int, default=200,
 #inavariance
 parser.add_argument('--inv_fnc', type=str, default='MLP', choices=INV_FNCS,
                     help="Invariant function")
-parser.add_argument('--inv_latent_dim', type=int, default=10,
+parser.add_argument('--inv_latent_dim', type=int, default=16,
                     help="Invariant space dimensionality")
 parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
@@ -90,7 +90,7 @@ parser.add_argument('--use_adjoint', type=eval, default=False,
                     help="Use adjoint method for gradient computation")
 
 #vae
-parser.add_argument('--n_filt', type=int, default=10,
+parser.add_argument('--n_filt', type=int, default=16,
                     help="Number of filters in the cnn")
 parser.add_argument('--frames', type=int, default=5,
                     help="Number of timesteps used for encoding velocity") 
@@ -105,9 +105,9 @@ parser.add_argument('--dec_act', type=str, default='relu',
 #training 
 parser.add_argument('--Nepoch', type=int, default=2500,
                     help="Number of gradient steps for model training")
-parser.add_argument('--batch_size', type=int, default=25,
+parser.add_argument('--batch_size', type=int, default=15,
                     help="batch size")
-parser.add_argument('--lr', type=float, default=0.001,
+parser.add_argument('--lr', type=float, default=0.002,
                     help="Learning rate for model training")
 parser.add_argument('--seed', type=int, default=121,
                     help="Global seed for the training run")
@@ -115,7 +115,7 @@ parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
 parser.add_argument('--plot_every', type=int, default=100,
                     help="How often plot the training")
-parser.add_argument('--plotL', type=int, default=2,
+parser.add_argument('--plotL', type=int, default=1,
                     help="Number of MC draws for plotting")
 
 #log 
