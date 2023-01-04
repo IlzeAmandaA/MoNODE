@@ -20,7 +20,7 @@ import torch.nn as nn
 from model.core.utils import *
 
 
-def encoder_factory(name, nx, nc, nh, nf):
+def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
     """
     Creates an encoder with the given parameters according the input architecture name.
 
@@ -43,7 +43,7 @@ def encoder_factory(name, nx, nc, nh, nf):
         Either a module.conv.DCGAN64Encoder or a module.conv.VGG64Encoder depending on the chosen architecture.
     """
     if name == 'dcgan':
-        return DCGAN64Encoder(nc, nh, nf)
+        return DCGAN64Encoder(nc, nh, nf, enc_out_dim)
     if name == 'vgg':
         return VGG64Encoder(nc, nh, nf)
     raise ValueError(f'No encoder named \'{name}\'')
