@@ -17,7 +17,7 @@ import torch
 
 import torch.nn as nn
 
-from model.core.utils import * 
+from model.core.utils import activation_factory
 
 
 def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
