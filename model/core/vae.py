@@ -5,6 +5,7 @@ from torchsummary import summary
 from model.misc.torch_utils import Flatten, UnFlatten
 from model.core.gru_encoder import GRUEncoder
 from model.core.mlp import MLP
+from model.core.conv import *
 import numpy as np
 
 EPSILON = 1e-5
@@ -87,15 +88,19 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, cnn_type=None):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
         ### build encoder
         if task=='rot_mnist' or task=='mov_mnist':
             lhood_distribution = 'bernoulli'
-            self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
-            self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
+            if cnn_type == 'deep':
+                self.encoder = encoder_factory('dcgan')
+                self.decoder = decoder_factory('dcgan')
+            else:
+                self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
+                self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
             if order==2:
                 self.encoder_v   = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
 
