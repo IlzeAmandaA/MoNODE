@@ -17,7 +17,7 @@ import torch
 
 import torch.nn as nn
 
-from model.core.utils import *
+from model.core.utils import * 
 
 
 def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
@@ -103,7 +103,7 @@ def make_conv_block(conv, activation, bn=True):
     if bn:
         modules.append(nn.BatchNorm2d(out_channels))
     if activation != 'none':
-        modules.append(utils.activation_factory(activation))
+        modules.append(activation_factory(activation))
     return nn.Sequential(*modules)
 
 
