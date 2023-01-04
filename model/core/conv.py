@@ -29,13 +29,13 @@ def encoder_factory(name, nx, nc, nh, nf):
     name : str
         'dcgan' or 'vgg'. Name of the architecture to use.
     nx : int
-        Width and height of the video frames.
+        Width and height of the video frames. (64)
     nc : int
-        Number of channels in the input data.
+        Number of channels in the input data. (1)
     nh : int
-        Number of dimensions of the output flat vector.
+        Number of dimensions of the output flat vector. (they use 128)
     nf : int
-        Number of filters per channel of the first convolution.
+        Number of filters per channel of the first convolution. (64)
 
     Returns
     -------
@@ -125,6 +125,7 @@ class BaseEncoder(nn.Module):
         """
         super(BaseEncoder, self).__init__()
         self.nh = nh
+        
 
     def forward(self, x, return_skip=False):
         """
@@ -151,6 +152,9 @@ class BaseEncoder(nn.Module):
         h = self.last_conv(h).view(-1, self.nh)
         if return_skip:
             return h, skips[::-1]
+        print('h encoder', h.shape)
+        h = self.fc(h)
+
         return h
 
 
@@ -158,7 +162,7 @@ class DCGAN64Encoder(BaseEncoder):
     """
     Module implementing the DCGAN encoder.
     """
-    def __init__(self, nc, nh, nf):
+    def __init__(self, nc, nh, nf, enc_out_dim):
         """
         Parameters
         ----------
@@ -177,7 +181,7 @@ class DCGAN64Encoder(BaseEncoder):
             make_conv_block(nn.Conv2d(nf * 4, nf * 8, 4, 2, 1, bias=False), activation='leaky_relu')
         ])
         self.last_conv = make_conv_block(nn.Conv2d(nf * 8, nh, 4, 1, 0, bias=False), activation='tanh')
-
+        self.fc = nn.Linear(in_features, enc_out_dim)
 
 class VGG64Encoder(BaseEncoder):
     """

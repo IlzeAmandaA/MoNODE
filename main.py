@@ -100,6 +100,8 @@ parser.add_argument('--rnn_hidden', type=int, default=10,
                     help="Encoder RNN latent dimensionality") 
 parser.add_argument('--dec_act', type=str, default='relu',
                     help="MLP Decoder activation") 
+parser.add_argument('--cnn_type', type=str, default='deep',
+                    help="CNN architecture type") 
                     
 
 #training 
