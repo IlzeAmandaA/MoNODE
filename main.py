@@ -23,6 +23,7 @@ DE_MODELS = ['MLP', 'SVGP']
 INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
+CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 # TASK = 'rot_mnist'
@@ -36,9 +37,9 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=50000,
+parser.add_argument('--Ntrain', type=int, default=9000,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=3000,
+parser.add_argument('--Nvalid', type=int, default=1000,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
@@ -102,7 +103,7 @@ parser.add_argument('--rnn_hidden', type=int, default=10,
                     help="Encoder RNN latent dimensionality") 
 parser.add_argument('--dec_act', type=str, default='relu',
                     help="MLP Decoder activation") 
-parser.add_argument('--cnn_type', type=str, default='deep',
+parser.add_argument('--cnn_arch', type=str, default='dcgan', choices=CNN_ARCHITECTURE,
                     help="CNN architecture type") 
                     
 
@@ -180,8 +181,8 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}'.format(
-                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.order, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand))
+    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}| cnn architecture {}'.format(
+                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.order, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand, args.cnn_arch))
     logger.info(invodevae)
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')

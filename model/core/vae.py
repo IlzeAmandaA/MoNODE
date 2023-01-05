@@ -88,19 +88,21 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, cnn_type='deep'):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, cnn_arch='cnn'):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
         ### build encoder
         if task=='rot_mnist' or task=='mov_mnist':
             lhood_distribution = 'bernoulli'
-            if cnn_type == 'deep' and task=='mov_mnist':
+            if cnn_arch == 'dcgan':
                 self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=64, enc_out_dim=ode_latent_dim//order)
                 self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
-            else:
+            elif cnn_arch == 'cnn':
                 self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
                 self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
+            else:
+                raise SystemExit('Invalid encoder/decoder selected')
             if order==2:
                 self.encoder_v   = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
 

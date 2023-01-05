@@ -73,7 +73,7 @@ def build_model(args, device, dtype):
     # encoder & decoder
     vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
             dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
-            inv_latent_dim=args.inv_latent_dim, order=args.order, cnn_type=args.cnn_type, device=device).to(dtype)
+            inv_latent_dim=args.inv_latent_dim, order=args.order, cnn_arch=args.cnn_arch, device=device).to(dtype)
 
     #full model
     inodevae = INVODEVAE(flow = flow,
