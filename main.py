@@ -36,14 +36,16 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=2500,
+parser.add_argument('--Ntrain', type=int, default=50000,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=100,
+parser.add_argument('--Nvalid', type=int, default=3000,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
 parser.add_argument('--digit', type=int, default=5,
                     help="Rotating MNIST digit (train data)")
+parser.add_argument('--seq_len', type=int, default=15,
+                    help="For Moving MNIST seq_len for training")
 
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=10,
@@ -168,7 +170,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info('********** Running model on {} ********** '.format(device))
 
-    ########### data ############ 
+    ########### data ############ ``
     trainset, testset = load_data(args, device, dtype)
     logger.info('********** {} dataset with loaded ********** '.format(args.task))
 

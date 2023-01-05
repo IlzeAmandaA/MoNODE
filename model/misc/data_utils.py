@@ -77,7 +77,7 @@ def load_rot_mnist_data(args, device, dtype):
 def load_mov_mnist_data(args, device, dtype):
 	N  = args.Ntrain #train
 	Nt = args.Nvalid + N # valid
-	data = np.load(os.path.join(args.data_root,'mov-mnist.npy')).transpose([1,0,2,3])[:Nt] # N,T,d,d
+	data = np.load(os.path.join(args.data_root,'mov-mnist.npy')).transpose([1,0,2,3])[:Nt,:args.seq_len] # N,T,d,d
 	data = torch.tensor(data).to(device).to(dtype).unsqueeze(2) / 255.0 # N,T,1,d,d
 	Xtr, Xtest = data[:N], data[N:]
 	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
