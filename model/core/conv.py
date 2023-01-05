@@ -16,9 +16,11 @@
 import torch
 
 import torch.nn as nn
+import numpy as np
 
-from model.core.utils import activation_factory
+import model.core.utils as utils
 
+eps = 1e-5
 
 def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
     """
@@ -49,7 +51,7 @@ def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
     raise ValueError(f'No encoder named \'{name}\'')
 
 
-def decoder_factory(name, nx, nc, ny, nf, skip=False):
+def decoder_factory(name, nx, nc, ny, nf, skip=None):
     """
     Creates a decoder with the given parameters according the input architecture name.
 
@@ -103,7 +105,7 @@ def make_conv_block(conv, activation, bn=True):
     if bn:
         modules.append(nn.BatchNorm2d(out_channels))
     if activation != 'none':
-        modules.append(activation_factory(activation))
+        modules.append(utils.activation_factory(activation))
     return nn.Sequential(*modules)
 
 
@@ -125,6 +127,7 @@ class BaseEncoder(nn.Module):
         """
         super(BaseEncoder, self).__init__()
         self.nh = nh
+        self.sp = nn.Softplus()
         
 
     def forward(self, x, return_skip=False):
@@ -152,10 +155,28 @@ class BaseEncoder(nn.Module):
         h = self.last_conv(h).view(-1, self.nh)
         if return_skip:
             return h, skips[::-1]
-        print('h encoder', h.shape)
-        h = self.fc(h)
+        z0_mu = self.fc1(h)
+        z0_sig = self.sp(self.fc2(h))
 
-        return h
+        return z0_mu, z0_sig
+
+    def sample(self, mu, std, L=1):
+        ''' mu,std  - [N,q]
+            returns - [L,N,q] if L>1 else [N,q]'''
+        if std is None:
+            return mu
+        eps = torch.randn([L,*std.shape]).to(mu.device).to(mu.dtype).squeeze(0) # [N,q] or [L,N,q]
+        return mu + std*eps
+
+    def q_dist(self, mu_s, std_s, mu_v=None, std_v=None):
+        if mu_v is not None:
+            means = torch.cat((mu_s,mu_v), dim=-1)
+            stds  = torch.cat((std_s,std_v), dim=-1)
+        else:
+            means = mu_s
+            stds  = std_s
+
+        return torch.distributions.Normal(means, stds) #N,q
 
 
 class DCGAN64Encoder(BaseEncoder):
@@ -175,13 +196,18 @@ class DCGAN64Encoder(BaseEncoder):
         """
         super(DCGAN64Encoder, self).__init__(nh)
         self.conv = nn.ModuleList([
-            make_conv_block(nn.Conv2d(nc, nf, 4, 2, 1, bias=False), activation='leaky_relu', bn=False),
-            make_conv_block(nn.Conv2d(nf, nf * 2, 4, 2, 1, bias=False), activation='leaky_relu'),
-            make_conv_block(nn.Conv2d(nf * 2, nf * 4, 4, 2, 1, bias=False), activation='leaky_relu'),
-            make_conv_block(nn.Conv2d(nf * 4, nf * 8, 4, 2, 1, bias=False), activation='leaky_relu')
+            make_conv_block(nn.Conv2d(nc, nf, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu', bn=False),
+            make_conv_block(nn.Conv2d(nf, nf * 2, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu'),
+            make_conv_block(nn.Conv2d(nf * 2, nf * 4, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu'),
+            make_conv_block(nn.Conv2d(nf * 4, nf * 8, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu')
         ])
-        self.last_conv = make_conv_block(nn.Conv2d(nf * 8, nh, 4, 1, 0, bias=False), activation='tanh')
-        self.fc = nn.Linear(in_features, enc_out_dim)
+        self.last_conv = make_conv_block(nn.Conv2d(nf * 8, nh, kernel_size=4, stride=1, padding=0, bias=False), activation='tanh')
+        self.fc1 = nn.Linear(nh, enc_out_dim)
+        self.fc2 = nn.Linear(nh, enc_out_dim)
+
+    def forward(self, x):
+        #only condition on the inital frame 
+        return super().forward(x[:,0])
 
 class VGG64Encoder(BaseEncoder):
     """
@@ -250,7 +276,7 @@ class BaseDecoder(nn.Module):
         self.ny = ny
         self.skip = skip
 
-    def forward(self, z, skip=None, sigmoid=True):
+    def forward(self, z, dims, skip=None, sigmoid=True):
         """
         Parameters
         ----------
@@ -276,14 +302,14 @@ class BaseDecoder(nn.Module):
         x_ = h
         if sigmoid:
             x_ = torch.sigmoid(x_)
-        return x_
+        return x_.view(dims)
 
 
 class DCGAN64Decoder(BaseDecoder):
     """
     Module implementing the DCGAN decoder.
     """
-    def __init__(self, nc, ny, nf, skip):
+    def __init__(self, nc, ny, nf, skip, distribution='bernoulli'):
         """
         Parameters
         ----------
@@ -299,6 +325,7 @@ class DCGAN64Decoder(BaseDecoder):
         """
         super(DCGAN64Decoder, self).__init__(ny, skip)
         # decoder
+        self.distribution = distribution
         coef = 2 if skip else 1
         self.first_upconv = make_conv_block(nn.ConvTranspose2d(ny, nf * 8, 4, 1, 0, bias=False), activation='leaky_relu')
         self.conv = nn.ModuleList([
@@ -307,6 +334,24 @@ class DCGAN64Decoder(BaseDecoder):
             make_conv_block(nn.ConvTranspose2d(nf * 2 * coef, nf, 4, 2, 1, bias=False), activation='leaky_relu'),
             nn.ConvTranspose2d(nf * coef, nc, 4, 2, 1, bias=False),
         ])
+
+    def forward(self, z, dims, skip=None, sigmoid=True):
+        z = z.contiguous().view([np.prod(list(z.shape[:-1])),z.shape[-1]])  # L*N*T,q  
+        return super().forward(z, dims, skip, sigmoid)
+
+    def log_prob(self, X, Xhat, L=1):
+        '''
+        x - input [N,T,nc,d,d]   or [N,T,d]
+        z - preds [L,N,T,nc,d,d] or [L,N,T,d]
+        '''
+        XL = X.repeat([L]+[1]*X.ndim) # L,N,T,nc,d,d or L,N,T,d
+        if self.distribution == 'bernoulli':
+            try:
+                log_p = torch.log(Xhat)*XL + torch.log(1-Xhat)*(1-XL) # L,N,T,nc,d,d
+            except:
+                log_p = torch.log(eps+Xhat)*XL + torch.log(eps+1-Xhat)*(1-XL) # L,N,T,nc,d,d
+
+        return log_p
 
 
 class VGG64Decoder(BaseDecoder):
