@@ -356,7 +356,6 @@ def train_mov_mnist(args, invodevae, plotter, trainset, validset, logger):
             test_elbos,test_mses = [],[]
             for valid_batch in validset:
                 valid_batch = valid_batch.to(invodevae.device)
-                print('valid sub', valid_batch[:,:args.seq_len,].shape )
                 _, test_elbo, _, kl_z0, test_mse, contr_learn_loss = compute_loss(invodevae, valid_batch[:,:args.seq_len,])
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
