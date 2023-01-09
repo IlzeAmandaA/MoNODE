@@ -1,18 +1,18 @@
 #!/bin/bash
 #SBATCH --ntasks=1                # Number of tasks (see below)
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
-#SBATCH --time=0-12:00            # Runtime in D-HH:MM
-#SBATCH --mem=20000               # Memory pool for all cores (see also --mem-per-cpu)
-#SBATCH --output=/mnt/qb/work/bethge/cyildiz40/slurm_logs/%x_%j.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/bethge/cyildiz40/slurm_logs/%x_%j.err   # File to which STDERR will be written
 #SBATCH --gres=gpu:1              # Request one GPU
+#SBATCH --time=8:00:00            # Runtime in hh:mm:ss
+#SBATCH --mem=30G                 # Memory pool for all cores (see also --mem-per-cpu)
+#SBATCH --cpus-per-task=10        # cpus per task
+#SBATCH --output=/home/iauzina/slurm_logs/%x_%j.out  # File to which STDOUT will be written
+#SBATCH --error=/home/iazuina/slurm_logs/%x_%j.err   # File to which STDERR will be written
 
-# ssh -t cyildiz40@134.2.168.72 "cd /mnt/qb/work/bethge/cyildiz40/contrastive-continual-dynamics; squeue --user cyildiz40; conda activate default; bash -l"
 
 # include information about the job in the output
 scontrol show job=$SLURM_JOB_ID
 
 # conda init bash
-source activate default
+source activate venv3.8
 # conda  activate default
-srun python3 main.py
+srun python main.py --Nepoch 100
