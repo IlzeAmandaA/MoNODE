@@ -1,6 +1,7 @@
 import os, time, numpy as np
 import torch
 from torch.distributions import kl_divergence as kl
+from torchdiffeq import odeint
 import sys
 
 from model.core.svgp import SVGP_Layer
@@ -170,7 +171,7 @@ def freeze_pars(par_list):
             raise ValueError('This is not a parameter!?')
 
 
-def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=False):
+def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn=False):
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
     elbo_meter  = log_utils.CachedRunningAverageMeter(10)
     nll_meter   = log_utils.CachedRunningAverageMeter(10)
@@ -226,9 +227,9 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
         with torch.no_grad():
             torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
             test_elbos,test_mses,lhoods = [],[],[]
-            for itr_test,test_batch in enumerate(testset):
-                test_batch = test_batch.to(invodevae.device)
-                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, test_batch, L=1, seed=test_batch.shape[1]//2)
+            for itr_test,valid_batch in enumerate(validset):
+                valid_batch = valid_batch.to(invodevae.device)
+                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, valid_batch, L=1, seed=valid_batch.shape[1]//2)
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
                 lhoods.append(nlhood.item())
@@ -238,14 +239,14 @@ def train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=3*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = invodevae(test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])[:2]
+                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=2*valid_batch.shape[1])[:2]
 
                 plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
-                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
+                    Xrec_te.squeeze(0), valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
 
 
-def train_mov_mnist(args, invodevae, plotter, trainset, testset, logger):
-    from torchdiffeq import odeint
+def train_mov_mnist(args, invodevae, plotter, trainset, validset, logger):
+    
     invodevae.flow.odefunc.diffeq = MLP(args.ode_latent_dim//2, args.ode_latent_dim//2, 
         L=args.num_layers, H=args.num_hidden, act='softplus').to(invodevae.device).to(invodevae.dtype)
     elbo_meter  = log_utils.CachedRunningAverageMeter(10)
@@ -334,7 +335,6 @@ def train_mov_mnist(args, invodevae, plotter, trainset, testset, logger):
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
-
             # model predictions
             loss, elbo, lhood, kl_z0, mse, contr_learn_loss = compute_loss(invodevae, tr_minibatch)
 
@@ -354,9 +354,10 @@ def train_mov_mnist(args, invodevae, plotter, trainset, testset, logger):
         with torch.no_grad():
             torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
             test_elbos,test_mses = [],[]
-            for test_batch in testset:
-                test_batch = test_batch.to(invodevae.device)
-                _, test_elbo, _, kl_z0, test_mse, contr_learn_loss = compute_loss(invodevae, test_batch)
+            for valid_batch in validset:
+                valid_batch = valid_batch.to(invodevae.device)
+                print('valid sub', valid_batch[:,:args.seq_len,].shape )
+                _, test_elbo, _, kl_z0, test_mse, contr_learn_loss = compute_loss(invodevae, valid_batch[:,:args.seq_len,])
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
             test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
@@ -365,7 +366,7 @@ def train_mov_mnist(args, invodevae, plotter, trainset, testset, logger):
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = model_forward(invodevae, tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = model_forward(invodevae, test_batch,   L=args.plotL, T_custom=2*test_batch.shape[1])[:2]
+                Xrec_te, ztL_te = model_forward(invodevae, valid_batch,   L=args.plotL, T_custom=valid_batch.shape[1])[:2]
 
                 plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
-                    Xrec_te.squeeze(0), test_batch, elbo_meter, nll_meter, kl_z0_meter, None, mse_meter)
+                    Xrec_te.squeeze(0), valid_batch, elbo_meter, nll_meter, kl_z0_meter, None, mse_meter)

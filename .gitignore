@@ -1,4 +1,5 @@
 results/*
+data/MNIST
 *.DS_Store
 .DS_Store
 .vscode/*

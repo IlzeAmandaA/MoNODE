@@ -16,7 +16,7 @@ import torch.nn as nn
 from model.model_misc import build_model, train_model, train_mov_mnist
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
-from model.misc.data_utils import load_data
+from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
 DE_MODELS = ['MLP', 'SVGP']
@@ -37,9 +37,9 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=9000,
+parser.add_argument('--Ntrain', type=int, default=3000,
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=1000,
+parser.add_argument('--Nvalid', type=int, default=100,
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
@@ -47,6 +47,20 @@ parser.add_argument('--digit', type=int, default=5,
                     help="Rotating MNIST digit (train data)")
 parser.add_argument('--seq_len', type=int, default=15,
                     help="For Moving MNIST seq_len for training")
+parser.add_argument('--nx', type=int, default=64,
+                    help="Frame size")
+parser.add_argument('--max_speed', type=int, metavar='SPEED', default=4,
+               help='For Moving MNIST only. Digits maximum speed.')
+parser.add_argument('--deterministic', type=eval, default=True,
+               help='For Moving MNIST only. Whether to consider deterministic, instead of stochastic, bounces.')
+parser.add_argument('--ndigits', type=int, metavar='DIGITS', default=2,
+               help='For Moving MNIST only. Number of digits.')
+parser.add_argument('--subsample', type=int, default=600,
+                    help="Subsample styles for Moving MNIST")
+parser.add_argument('--seq_len_valid', type=int, default=30,
+                    help="For Moving MNIST seq_len for validation")
+parser.add_argument('--shuffle', type=eval, default=True,
+               help='For Moving MNIST whetehr to shuffle the data')
 
 #de model
 parser.add_argument('--ode_latent_dim', type=int, default=10,
@@ -110,7 +124,7 @@ parser.add_argument('--cnn_arch', type=str, default='dcgan', choices=CNN_ARCHITE
 #training 
 parser.add_argument('--Nepoch', type=int, default=2500,
                     help="Number of gradient steps for model training")
-parser.add_argument('--batch_size', type=int, default=15,
+parser.add_argument('--batch_size', type=int, default=25,
                     help="batch size")
 parser.add_argument('--lr', type=float, default=0.002,
                     help="Learning rate for model training")
@@ -172,7 +186,7 @@ if __name__ == '__main__':
     logger.info('********** Running model on {} ********** '.format(device))
 
     ########### data ############ ``
-    trainset, testset = load_data(args, device, dtype)
+    trainset, validset = load_data(args, device, dtype)
     logger.info('********** {} dataset with loaded ********** '.format(args.task))
 
     ########### model ###########
@@ -190,7 +204,7 @@ if __name__ == '__main__':
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
     # train_model(args, invodevae, plotter, trainset, testset, logger)
-    train_mov_mnist(args, invodevae, plotter, trainset, testset, logger)
+    train_mov_mnist(args, invodevae, plotter, trainset, validset, logger)
 
 
 

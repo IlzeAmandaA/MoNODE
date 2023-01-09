@@ -4,21 +4,22 @@ import torch
 import torch.nn as nn
 from   torch.utils import data
 
-from   model.misc.lv import LotkaVolterra
+from   data.lv import LotkaVolterra
+from data.mmnist import MovingMNIST
 
 
 def load_data(args, device, dtype):
 	if args.task=='rot_mnist':
-		trainset, testset = load_rot_mnist_data(args, device, dtype)
+		trainset, valset = load_rot_mnist_data(args, device, dtype)
 	elif args.task=='mov_mnist':
-		trainset, testset = load_mov_mnist_data(args, device, dtype)
+		trainset, valset = load_mov_mnist_data(args, dtype)
 	elif args.task=='sin':
-		trainset, testset = load_sin_data(args, device, dtype)
+		trainset, valset = load_sin_data(args, device, dtype)
 	elif args.task=='lv':
-		trainset, testset = load_lv_data(args, device, dtype)
+		trainset, valset = load_lv_data(args, device, dtype)
 	else:
 		return ValueError(r'Invalid task {arg.task}')
-	return trainset, testset #, N, T, D
+	return trainset, valset #, N, T, D
 
 
 class Dataset(data.Dataset):
@@ -46,6 +47,11 @@ def __build_dataset(num_workers, batch_size, Xtr, Xtest, shuffle=True):
 	testset  = data.DataLoader(testset, **params)
 	return trainset, testset
 
+def __build_dataloader(dataset, params):
+	if params['num_workers']>0:
+		from multiprocessing import Process, freeze_support
+		torch.multiprocessing.set_start_method('spawn', force="True")
+	return data.DataLoader(dataset, **params)
 
 def load_rot_mnist_data(args, device, dtype):
 	fullname = os.path.join(args.data_root, "rot-mnist.mat")
@@ -74,13 +80,25 @@ def load_rot_mnist_data(args, device, dtype):
 	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
 
-def load_mov_mnist_data(args, device, dtype):
-	N  = args.Ntrain #train
-	Nt = args.Nvalid + N # valid
-	data = np.load(os.path.join(args.data_root,'mov-mnist.npy')).transpose([1,0,2,3])[:Nt,:args.seq_len] # N,T,d,d
-	data = torch.tensor(data).to(device).to(dtype).unsqueeze(2) / 255.0 # N,T,1,d,d
-	Xtr, Xtest = data[:N], data[N:]
-	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
+def load_mov_mnist_data(args, dtype):
+	dataset = MovingMNIST.make_dataset(args.data_root, args.nx, args.seq_len,args.max_speed,
+                                        args.deterministic, args.ndigits, args.subsample, args.Ntrain, dtype)
+	trainset = dataset.get_fold('train')
+	valset = dataset.get_fold('val')
+	# Change validation sequence length, if specified
+	if args.seq_len_valid is not None:
+		valset.change_seq_len(args.seq_len_valid)
+
+	params = {'batch_size': args.batch_size, 'collate_fn': dataset.collate_fn, 'sampler': None, 'drop_last':True,
+				 'shuffle': args.shuffle, 'pin_memory':True, 'num_workers': args.num_workers}
+	return __build_dataloader(trainset, params), __build_dataloader(valset, params)
+
+	# N  = args.Ntrain #train
+	# Nt = args.Nvalid + N # valid
+	# data = np.load(os.path.join(args.data_root,'mov-mnist.npy')).transpose([1,0,2,3])[:Nt,:args.seq_len] # N,T,d,d
+	# data = torch.tensor(data).to(device).to(dtype).unsqueeze(2) / 255.0 # N,T,1,d,d
+	# Xtr, Xtest = data[:N], data[N:]
+	#return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
 
 def __load_data(args, device, dtype, dataset='sin'):
@@ -117,6 +135,8 @@ def load_lv_data(args, device, dtype):
 # 		X = X[0].to(device).to(dtype)
 # 		torch.save(X,data_path)
 # 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
+
+
 
 
 def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1): 
