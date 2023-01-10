@@ -18,7 +18,6 @@ video/.Rhistory
 *.idea
 *.ds
 *checkpoints
-*.txt
 *.html
 *.tgz
 *.npz
