@@ -37,7 +37,7 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=3000,
+parser.add_argument('--Ntrain', type=int, default=8000,
                     help="Number training data points")
 parser.add_argument('--Nvalid', type=int, default=100,
                     help="Number valid data points")
