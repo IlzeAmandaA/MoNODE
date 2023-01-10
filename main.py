@@ -195,8 +195,18 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}| cnn architecture {}'.format(
+    if args.task == 'mov_mnist': 
+        if args.de == 'SVGP': 
+            logger.info('Model parameters: subsample style {} | Ndata {} | cnn architecture {} | ODE latent_dim {} |inv_latent_dim {}| lr {} | order {} | dt {}| num features {} | num inducing {}  |  kernel {} |   variance {} | lengthscale {} | solver {}|  inv_fnc {}'.format(
+                args.subsample, args.Ntrain, args.cnn_arch, args.ode_latent_dim, args.inv_latent_dim, args.lr, args.order, args.dt, args.num_features, args.num_inducing, args.kernel, args.variance, args.lengthscale, args.solver, args.inv_fnc))               
+        elif args.de == 'MLP':
+            logger.info('Model parameters: subsample style {} | Ndata {} |  cnn architecture {} | ODE latent_dim {} |inv_latent_dim {}| lr {} | order {} | dt {} | solver {} | inv_fnc {}'.format(
+                args.subsample, args.Ntrain, args.cnn_arch, args.ode_latent_dim, args.inv_latent_dim, args.lr, args.order, args.dt, args.solver, args.inv_fnc))               
+    
+    elif args.task == 'rot_mnist':
+        logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}| cnn architecture {}'.format(
                     args.num_features, args.num_inducing, args.Nepoch,args.lr, args.order, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand, args.cnn_arch))
+
     logger.info(invodevae)
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')

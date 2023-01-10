@@ -29,6 +29,7 @@ class INV_ENC(nn.Module):
         '''
         c = self.inv_encoder(X) # N,Tinv,q
         if self.is_last_layer_gp:
+            self.last_layer_gp.build_cache()
             [N_,T_,q_] = c.shape
             c = c.reshape(N_*T_,q_)
             cL = torch.stack([self.last_layer_gp(c) for _ in range(L)]) # 
