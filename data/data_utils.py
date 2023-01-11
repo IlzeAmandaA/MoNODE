@@ -5,6 +5,7 @@ import torch.nn as nn
 from   torch.utils import data
 
 from   data.lv import LotkaVolterra
+from torchdiffeq import odeint
 from data.mmnist import MovingMNIST
 from model.misc import io_utils
 
@@ -147,25 +148,31 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1):
 	X = X.unsqueeze(-1) # N,T,1
 	torch.save(X, data_path)
 
-def gen_spiral_data(data_path): #TODO implement
+def gen_spiral_data(data_path, N, T, dt, ): #TODO implement
 	pass
 
 
-def gen_lv_data(data_path, M, N=5, T=50, dt=.2, sig=.01, w=10):
+def gen_lv_data(data_path, N=5, T=50, dt=.2, sig=.01, w=10):
 	d  = 2 # state dim
 
 	alpha = torch.rand([N,1]) / .3 + .1
 	gamma = torch.rand([N,1]) / .3 + .1
 	beta  = 0.5
 	delta = 0.2
-	lotka_volterra = LotkaVolterra(alpha, beta, delta, gamma)
+
+	def odef(t,state,alpha,beta,gamma,delta):
+		x,y = state.split([1,1],dim=-1) # M,1 & M,1
+		dx = alpha*x   - beta*x*y # M,1
+		dy = delta*x*y - gamma*y  # M,1
+		return torch.cat([dx,dy],-1)
+
+	odef_ = lambda t,x: odef(t,x,alpha,beta,gamma,delta)
 	
-	x0 = torch.tensor([5.0,2.5]) + w*torch.rand([N*M,d])
+	x0 = torch.tensor([5.0,2.5]) + w*torch.rand([N,d])
 	ts = torch.arange(T) * dt
-	
-	with torch.no_grad():
-		X = lotka_volterra.forward_simulate(x0,ts) # T,NM,d
-		X = X.reshape(T,N,M,d).permute(2,1,0,3) # M,N,T,d
+	xt = odeint(odef_, x0, ts, method='dopri5') # T,N,n
+
+	X = X.reshape(T,N,M,d).permute(2,1,0,3) # M,N,T,d
 	std = (X.max(2)[0] - X.min(2)[0]).sqrt().unsqueeze(2) # N,M,1,d
 	X  += torch.randn([M,N,T,d]) * std * sig
 	torch.save(X, data_path)
