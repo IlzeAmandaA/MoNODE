@@ -25,12 +25,18 @@ def build_model(args, device, dtype):
 
     #differential function
     aug = args.task=='sin' and args.inv_latent_dim>0
+    Nobj = 1
     if aug: # augmented dynamics
         D_in  = args.ode_latent_dim + args.inv_latent_dim
         D_out = int(args.ode_latent_dim / args.order)
     else:
-        D_in  = args.ode_latent_dim
-        D_out = int(D_in / args.order)
+        if args.task == 'mov_mnist': #multiple objects with shared dynamics
+            Nobj = 2
+            D_in = args.ode_latent_dim// Nobj
+            D_out = args.ode_latent_dim// Nobj
+        else:
+            D_in  = args.ode_latent_dim
+            D_out = int(D_in / args.order)
 
     if args.de == 'SVGP':
         de = SVGP_Layer(D_in=D_in, 
@@ -84,7 +90,8 @@ def build_model(args, device, dtype):
                         order = args.order,
                         steps = args.frames,
                         dt  = args.dt,
-                        aug = aug)
+                        aug = aug,
+                        nobj=Nobj)
 
     return inodevae
 
@@ -199,12 +206,12 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
-            if args.task=='sin':
+            if args.task=='sin': #slowly increase sequence length
                 [N,T] = tr_minibatch.shape[:2]
                 T_  = min(T, ep//40+5)
                 if T_ < T:
                     N_  = int(N*(T//T_))
-                    t0s = torch.randint(0,T-T_,[N_]) 
+                    t0s = torch.randint(0,T-T_,[N_])  #select a random initial point from the sequence
                     tr_minibatch = tr_minibatch.repeat([N_,1,1])
                     tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
@@ -238,134 +245,134 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=3*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=2*valid_batch.shape[1])[:2]
+                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
+                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1])[:2]
 
-                plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
-                    Xrec_te.squeeze(0), valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
+                plot_results(plotter, args, ztL_tr, Xrec_tr, tr_minibatch, ztL_te, \
+                    Xrec_te, valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
 
 
-def train_mov_mnist(args, invodevae, plotter, trainset, validset, logger):
+# def train_mov_mnist(args, invodevae, plotter, trainset, validset, logger):
     
-    invodevae.flow.odefunc.diffeq = MLP(args.ode_latent_dim//2, args.ode_latent_dim//2, 
-        L=args.num_layers, H=args.num_hidden, act='softplus').to(invodevae.device).to(invodevae.dtype)
-    elbo_meter  = log_utils.CachedRunningAverageMeter(10)
-    nll_meter   = log_utils.CachedRunningAverageMeter(10)
-    kl_z0_meter = log_utils.CachedRunningAverageMeter(10)
-    mse_meter   = log_utils.CachedRunningAverageMeter(10)
-    contr_meter = log_utils.CachedRunningAverageMeter(10)
-    time_meter  = log_utils.CachedAverageMeter()
+#     # invodevae.flow.odefunc.diffeq = MLP(args.ode_latent_dim//2, args.ode_latent_dim//2, 
+#     #     L=args.num_layers, H=args.num_hidden, act='softplus').to(invodevae.device).to(invodevae.dtype)
+#     elbo_meter  = log_utils.CachedRunningAverageMeter(10)
+#     nll_meter   = log_utils.CachedRunningAverageMeter(10)
+#     kl_z0_meter = log_utils.CachedRunningAverageMeter(10)
+#     mse_meter   = log_utils.CachedRunningAverageMeter(10)
+#     contr_meter = log_utils.CachedRunningAverageMeter(10)
+#     time_meter  = log_utils.CachedAverageMeter()
 
-    logger.info('********** Started Training MOVING MNIST **********')
+#     logger.info('********** Started Training MOVING MNIST **********')
 
-    ############## build the optimizer
-    gp_pars  = [par for name,par in invodevae.named_parameters() if 'SVGP' in name]
-    rem_pars = [par for name,par in invodevae.named_parameters() if 'SVGP' not in name]
-    assert len(gp_pars)+len(rem_pars) == len(list(invodevae.parameters()))
-    optimizer = torch.optim.Adam([
-                    {'params': rem_pars, 'lr': args.lr},
-                    {'params': gp_pars, 'lr': args.lr*10}
-                    ],lr=args.lr)
-    begin = time.time()
-    global_itr = 0
+#     ############## build the optimizer
+#     gp_pars  = [par for name,par in invodevae.named_parameters() if 'SVGP' in name]
+#     rem_pars = [par for name,par in invodevae.named_parameters() if 'SVGP' not in name]
+#     assert len(gp_pars)+len(rem_pars) == len(list(invodevae.parameters()))
+#     optimizer = torch.optim.Adam([
+#                     {'params': rem_pars, 'lr': args.lr},
+#                     {'params': gp_pars, 'lr': args.lr*10}
+#                     ],lr=args.lr)
+#     begin = time.time()
+#     global_itr = 0
 
-    def model_forward(invodevae, X, L, T_custom, nobj=2):
-        [N,T] = X.shape[:2]
-        if T_custom:
-            T = T_custom
+#     def model_forward(invodevae, X, L, T_custom, nobj=2):
+#         [N,T] = X.shape[:2]
+#         if T_custom:
+#             T = T_custom
 
-        # encode dynamics
-        s0_mu, s0_logv = invodevae.vae.encoder(X) # N,q
-        z0 = invodevae.vae.encoder.sample(s0_mu, s0_logv, L=L) # N,q or L,N,q
-        z0 = z0.unsqueeze(0) if z0.ndim==2 else z0 # L,N,q
-        q  = z0.shape[-1]
-        z0 = z0.reshape(L,N,nobj,q//nobj) # L,N,nobj,q_
+#         # encode dynamics
+#         s0_mu, s0_logv = invodevae.vae.encoder(X) # N,q
+#         z0 = invodevae.vae.encoder.sample(s0_mu, s0_logv, L=L) # N,q or L,N,q
+#         z0 = z0.unsqueeze(0) if z0.ndim==2 else z0 # L,N,q
+#         q  = z0.shape[-1]
+#         z0 = z0.reshape(L,N,nobj,q//nobj) # L,N,nobj,q_
         
-        # encode content (invariance)
-        C = invodevae.inv_enc(X, L=L) # embeddings [L,N,T,q]
-        q = C.shape[-1]
-        c = C.mean(2) # time-invariant code [L,N,q]
-        cL = torch.stack([c]*T,2) # [L,N,T,q]
+#         # encode content (invariance)
+#         C = invodevae.inv_enc(X, L=L) # embeddings [L,N,T,q]
+#         q = C.shape[-1]
+#         c = C.mean(2) # time-invariant code [L,N,q]
+#         cL = torch.stack([c]*T,2) # [L,N,T,q]
 
-        # sample trajectories
-        ts  = invodevae.dt * torch.arange(T,dtype=torch.float).to(z0.device)
-        ztL = []
-        odef = lambda t,x: invodevae.flow.odefunc.diffeq(x)
-        for z0_ in z0:
-            # implement this
-            zt_ = odeint(odef, z0_, ts, method='euler') # T,N,nobj,q_
-            ztL.append(zt_)
-        ztL = torch.stack(ztL) # L,T,N,nobj,q_
-        ztL = ztL.permute(0,2,1,3,4) # L,N,T,nobj,q
-        ztL = ztL.reshape(L,N,T,-1)
+#         # sample trajectories
+#         ts  = invodevae.dt * torch.arange(T,dtype=torch.float).to(z0.device)
+#         ztL = []
+#         odef = lambda t,x: invodevae.flow.odefunc.diffeq(x)
+#         for z0_ in z0:
+#             # implement this
+#             zt_ = odeint(odef, z0_, ts, method='euler') # T,N,nobj,q_
+#             ztL.append(zt_)
+#         ztL = torch.stack(ztL) # L,T,N,nobj,q_
+#         ztL = ztL.permute(0,2,1,3,4) # L,N,T,nobj,q
+#         ztL = ztL.reshape(L,N,T,-1)
 
-        # concat latent features and decode
-        ztcL = torch.cat([ztL, cL], -1) # L,N,T,_
-        Xrec = invodevae.vae.decoder(ztcL, [L,N,T,*X.shape[2:]]) # L,N,T,...
+#         # concat latent features and decode
+#         ztcL = torch.cat([ztL, cL], -1) # L,N,T,_
+#         Xrec = invodevae.vae.decoder(ztcL, [L,N,T,*X.shape[2:]]) # L,N,T,...
 
-        return Xrec, ztL, (s0_mu, s0_logv), (None, None), C
+#         return Xrec, ztL, (s0_mu, s0_logv), (None, None), C
 
-    def compute_loss(model, X):
-        T = X.shape[1]
-        Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model_forward(model, X, L, T_custom=T)
+#     def compute_loss(model, X):
+#         T = X.shape[1]
+#         Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model_forward(model, X, L, T_custom=T)
 
-        # elbo
-        q = invodevae.vae.encoder.q_dist(s0_mu, s0_logv, v0_mu, v0_logv)
-        kl_z0 = kl(q, invodevae.vae.prior).sum(-1) #N
+#         # elbo
+#         q = invodevae.vae.encoder.q_dist(s0_mu, s0_logv, v0_mu, v0_logv)
+#         kl_z0 = kl(q, invodevae.vae.prior).sum(-1) #N
 
-        # Reconstruction log-likelihood
-        lhood = invodevae.vae.decoder.log_prob(X,Xrec,L) #L,N,T,d,nc,nc
-        idx   = list(np.arange(X.ndim+1)) # 0,1,2,...
-        lhood = lhood.sum(idx[2:]).mean(0) #N
-        mse   = torch.mean((Xrec-X)**2)
+#         # Reconstruction log-likelihood
+#         lhood = invodevae.vae.decoder.log_prob(X,Xrec,L) #L,N,T,d,nc,nc
+#         idx   = list(np.arange(X.ndim+1)) # 0,1,2,...
+#         lhood = lhood.sum(idx[2:]).mean(0) #N
+#         mse   = torch.mean((Xrec-X)**2)
 
-        # contrastive learning
-        contr_learn_loss = contrastive_loss(C)
+#         # contrastive learning
+#         contr_learn_loss = contrastive_loss(C)
 
-        lhood = lhood.mean() * invodevae.num_observations
-        kl_z0 = kl_z0.mean() * invodevae.num_observations
-        elbo  = lhood - kl_z0
-        loss  = -elbo + contr_learn_loss
-
-
-        return loss, elbo, lhood, kl_z0, mse, contr_learn_loss
+#         lhood = lhood.mean() * invodevae.num_observations
+#         kl_z0 = kl_z0.mean() * invodevae.num_observations
+#         elbo  = lhood - kl_z0
+#         loss  = -elbo + contr_learn_loss
 
 
-    for ep in range(args.Nepoch):
-        L = 1 if ep<args.Nepoch//2 else 5 
-        for itr,local_batch in enumerate(trainset):
-            tr_minibatch = local_batch.to(invodevae.device) # N,T,...
-            # model predictions
-            loss, elbo, lhood, kl_z0, mse, contr_learn_loss = compute_loss(invodevae, tr_minibatch)
+#         return loss, elbo, lhood, kl_z0, mse, contr_learn_loss
 
-            optimizer.zero_grad()
-            loss.backward() 
-            optimizer.step()
 
-            #store values 
-            elbo_meter.update(loss.item(), global_itr)
-            nll_meter.update(lhood.item(), global_itr)
-            kl_z0_meter.update(kl_z0.item(), global_itr)
-            mse_meter.update(mse.item(), global_itr)
-            contr_meter.update(contr_learn_loss.item(), global_itr)
-            time_meter.update(time.time() - begin, global_itr)
-            global_itr +=1
+#     for ep in range(args.Nepoch):
+#         L = 1 if ep<args.Nepoch//2 else 5 
+#         for itr,local_batch in enumerate(trainset):
+#             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
+#             # model predictions
+#             loss, elbo, lhood, kl_z0, mse, contr_learn_loss = compute_loss(invodevae, tr_minibatch)
 
-        with torch.no_grad():
-            torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
-            test_elbos,test_mses = [],[]
-            for valid_batch in validset:
-                valid_batch = valid_batch.to(invodevae.device)
-                _, test_elbo, _, kl_z0, test_mse, contr_learn_loss = compute_loss(invodevae, valid_batch[:,:args.seq_len,])
-                test_elbos.append(test_elbo.item())
-                test_mses.append(test_mse.item())
-            test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
-            logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f} | contr_loss:{:5.3f}'.\
-                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
+#             optimizer.zero_grad()
+#             loss.backward() 
+#             optimizer.step()
 
-            if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = model_forward(invodevae, tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = model_forward(invodevae, valid_batch,   L=args.plotL, T_custom=valid_batch.shape[1])[:2]
+#             #store values 
+#             elbo_meter.update(loss.item(), global_itr)
+#             nll_meter.update(lhood.item(), global_itr)
+#             kl_z0_meter.update(kl_z0.item(), global_itr)
+#             mse_meter.update(mse.item(), global_itr)
+#             contr_meter.update(contr_learn_loss.item(), global_itr)
+#             time_meter.update(time.time() - begin, global_itr)
+#             global_itr +=1
 
-                plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
-                    Xrec_te.squeeze(0), valid_batch, elbo_meter, nll_meter, kl_z0_meter, None, mse_meter)
+#         with torch.no_grad():
+#             torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
+#             test_elbos,test_mses = [],[]
+#             for valid_batch in validset:
+#                 valid_batch = valid_batch.to(invodevae.device)
+#                 _, test_elbo, _, kl_z0, test_mse, contr_learn_loss = compute_loss(invodevae, valid_batch[:,:args.seq_len,])
+#                 test_elbos.append(test_elbo.item())
+#                 test_mses.append(test_mse.item())
+#             test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
+#             logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f} | contr_loss:{:5.3f}'.\
+#                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
+
+#             if ep % args.plot_every==0:
+#                 Xrec_tr, ztL_tr = model_forward(invodevae, tr_minibatch, L=args.plotL, T_custom=2*tr_minibatch.shape[1])[:2]
+#                 Xrec_te, ztL_te = model_forward(invodevae, valid_batch,   L=args.plotL, T_custom=valid_batch.shape[1])[:2]
+
+#                 plot_results(plotter, args, ztL_tr, Xrec_tr.squeeze(0), tr_minibatch, ztL_te, \
+#                     Xrec_te.squeeze(0), valid_batch, elbo_meter, nll_meter, kl_z0_meter, None, mse_meter)

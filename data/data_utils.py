@@ -6,6 +6,7 @@ from   torch.utils import data
 
 from   data.lv import LotkaVolterra
 from data.mmnist import MovingMNIST
+from model.misc import io_utils
 
 
 def load_data(args, device, dtype):
@@ -17,6 +18,8 @@ def load_data(args, device, dtype):
 		trainset, valset = load_sin_data(args, device, dtype)
 	elif args.task=='lv':
 		trainset, valset = load_lv_data(args, device, dtype)
+	elif args.task == 'spiral':
+		trainset, valset = load_spiral_data(args,device,dtype)
 	else:
 		return ValueError(r'Invalid task {arg.task}')
 	return trainset, valset #, N, T, D
@@ -102,12 +105,18 @@ def load_mov_mnist_data(args, dtype):
 
 
 def __load_data(args, device, dtype, dataset='sin'):
-	assert dataset=='sin' or dataset=='lv'
-	data_path = os.path.join(args.data_root,f'{dataset}-data.pkl')
+	assert dataset=='sin' or dataset=='lv'or dataset=='spiral'
+	io_utils.makedirs(args.data_root + '/' + args.task)
+	data_path = os.path.join(args.data_root + '/' + args.task,f'{dataset}-data.pkl')
 	try:
 		X = torch.load(data_path)
 	except:
-		data_loader_fnc = gen_sin_data if dataset=='sin' else gen_lv_data
+		if dataset=='sin':
+			data_loader_fnc = gen_sin_data
+		elif dataset == 'lv':
+			data_loader_fnc = gen_lv_data
+		elif dataset == 'spiral':
+			data_loader_fnc = gen_spiral_data
 		data_loader_fnc(data_path, args.Ntrain+args.Nvalid)
 		X = torch.load(data_path)
 	X = X.to(device).to(dtype)
@@ -122,21 +131,8 @@ def load_lv_data(args, device, dtype):
 	return __load_data(args, device, dtype, 'lv')
 
 
-# def load_sin_data(args, device, dtype):
-# 	data_path = os.path.join(args.data_root,'sin-data.pkl')
-# 	try:
-# 		X = torch.load(data_path)
-# 	except:
-# 		gen_sin_data(data_path, args.Ntrain+args.Nvalid)
-# 		X = torch.load(data_path)
-# 	try:
-# 		X = X.to(device).to(dtype)
-# 	except:
-# 		X = X[0].to(device).to(dtype)
-# 		torch.save(X,data_path)
-# 	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
-
-
+def load_spiral_data(args, device,dtype):
+	return __load_data(args, device, dtype, 'spiral')
 
 
 def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1): 
@@ -151,16 +147,15 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1):
 	X = X.unsqueeze(-1) # N,T,1
 	torch.save(X, data_path)
 
+def gen_spiral_data(data_path): #TODO implement
+	pass
+
 
 def gen_lv_data(data_path, M, N=5, T=50, dt=.2, sig=.01, w=10):
 	d  = 2 # state dim
 
-	# alpha = (1+torch.arange(M)) / M / .5
-	# gamma = (1+torch.arange(M)) / M / .5 
-	alpha = torch.rand([M]) / .3 + .1
-	gamma = torch.rand([M]) / .3 + .1
-	alpha = alpha.repeat([N]) # NM
-	gamma = gamma.repeat([N]) # NM
+	alpha = torch.rand([N,1]) / .3 + .1
+	gamma = torch.rand([N,1]) / .3 + .1
 	beta  = 0.5
 	delta = 0.2
 	lotka_volterra = LotkaVolterra(alpha, beta, delta, gamma)

@@ -258,8 +258,6 @@ class Decoder(nn.Module):
             raise ValueError('Unknown task {task}')
 
     def forward(self, z, dims):
-        #L,N,T,q = x.shape
-        #s = self.fc(x.contiguous().view([L*N*T,q]) ) # N*T,q
         inp  = z.contiguous().view([np.prod(list(z.shape[:-1])),z.shape[-1]])  # L*N*T,q  
         Xrec = self.net(inp)
         return Xrec.view(dims) # L,N,T,...

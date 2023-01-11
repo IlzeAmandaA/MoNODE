@@ -105,7 +105,7 @@ class Flow(nn.Module):
             rtol=self.rtol,
             method=self.solver
         )
-        return zt.permute([1,0,2])
+        return zt.permute(1,0,2,3) # N,T,nobj,q
 
 
     def num_evals(self):

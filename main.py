@@ -13,7 +13,7 @@ import torch.nn as nn
 # 2184376 - inv
 # 2184373/2184531 - inv + contr
 
-from model.model_misc import build_model, train_model, train_mov_mnist
+from model.model_misc import build_model, train_model #, train_mov_mnist
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from data.data_utils import load_data
@@ -22,7 +22,7 @@ SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixe
 DE_MODELS = ['MLP', 'SVGP']
 INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
-TASKS     = ['rot_mnist', 'mov_mnist', 'sin']
+TASKS     = ['rot_mnist', 'mov_mnist', 'sin', 'spiral', 'lv']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 #data
 parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
-                    help="Experiment type")
+                    help="Experiment type")                
 parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
@@ -136,6 +136,10 @@ parser.add_argument('--plot_every', type=int, default=100,
                     help="How often plot the training")
 parser.add_argument('--plotL', type=int, default=1,
                     help="Number of MC draws for plotting")
+parser.add_argument('--forecast_tr',type=int, default=2, #for moving mnist 2
+                    help="Number of forecast steps for plotting train")
+parser.add_argument('--forecast_te',type=int, default=2, #for moving mnist 2 
+                    help="Number of forecast steps for plotting test")
 
 #log 
 parser.add_argument('--save', type=str, default='results/',
@@ -195,26 +199,17 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE **********'.format(args.de))
-    if args.task == 'mov_mnist': 
-        if args.de == 'SVGP': 
-            logger.info('Model parameters: subsample style {} | Ndata {} | cnn architecture {} | ODE latent_dim {} |inv_latent_dim {}| lr {} | order {} | dt {}| num features {} | num inducing {}  |  kernel {} |   variance {} | lengthscale {} | solver {}|  inv_fnc {}'.format(
-                args.subsample, args.Ntrain, args.cnn_arch, args.ode_latent_dim, args.inv_latent_dim, args.lr, args.order, args.dt, args.num_features, args.num_inducing, args.kernel, args.variance, args.lengthscale, args.solver, args.inv_fnc))               
-        elif args.de == 'MLP':
-            logger.info('Model parameters: subsample style {} | Ndata {} |  cnn architecture {} | ODE latent_dim {} |inv_latent_dim {}| lr {} | order {} | dt {} | solver {} | inv_fnc {}'.format(
-                args.subsample, args.Ntrain, args.cnn_arch, args.ode_latent_dim, args.inv_latent_dim, args.lr, args.order, args.dt, args.solver, args.inv_fnc))               
-    
-    elif args.task == 'rot_mnist':
-        logger.info('Model parameters: num features {} | num inducing {} | num epochs {} | lr {} | order {} | dt {} | kernel {} | ODE latent_dim {} | inv_latent_dim {} | variance {} | lengthscale {} | rotated initial angle {}| cnn architecture {}'.format(
-                    args.num_features, args.num_inducing, args.Nepoch,args.lr, args.order, args.dt, args.kernel, args.ode_latent_dim, args.inv_latent_dim, args.variance, args.lengthscale, args.rotrand, args.cnn_arch))
-
+    for arg, value in sorted(vars(args).items()):
+        logger.info("Argument %s: %r", arg, value)
     logger.info(invodevae)
+
     if args.continue_training:
         fname = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, 'invodevae.pth')
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    # train_model(args, invodevae, plotter, trainset, testset, logger)
-    train_mov_mnist(args, invodevae, plotter, trainset, validset, logger)
+    train_model(args, invodevae, plotter, trainset, validset, logger)
+    #train_mov_mnist(args, invodevae, plotter, trainset, validset, logger)
 
 
 
