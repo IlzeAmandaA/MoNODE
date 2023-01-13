@@ -3,15 +3,14 @@ import torch.nn as nn
 from model.core.vae import EncoderCNN, EncoderRNN
 
 class INV_ENC(nn.Module):
-    def __init__(self, task, last_layer_gp=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, device='cpu'):
+    def __init__(self, task, last_layer_gp=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, Tin=10, device='cpu'):
         super(INV_ENC, self).__init__()
         self.last_layer_gp = last_layer_gp
         if task=='rot_mnist' or task=='mov_mnist':
             self.inv_encoder = InvariantEncoderCNN(task, 'dirac', inv_latent_dim, n_filt).to(device)
-        elif task=='sin':
-            data_dim = 1
+        elif task=='sin' or task=='spiral' or task=='lv':
+            data_dim = 1 if task=='sin' else 2 
             self.inv_encoder = InvariantEncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
-    
     @property
     def is_last_layer_gp(self):
         return self.last_layer_gp is not None

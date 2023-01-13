@@ -1,116 +1,92 @@
-# Copyright 2020 Mickael Chen, Edouard Delasalles, Jean-Yves Franceschi, Patrick Gallinari, Sylvain Lamprier
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#     http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-import os
-
 import numpy as np
-
+from scipy.ndimage import rotate
 from torchvision import datasets
+import torch
 
-from data.base import VideoDataset
+class MNIST(object):
+    def __init__(self, data_path, dtype) -> None:
+        self.data = datasets.MNIST(data_path, train=True, download=True)
+        self.dtype = dtype
 
-
-class MovingMNIST(VideoDataset):
-    """
-    Updated stochastic and deterministic MovingMNIST dataset, inspired by
-    https://github.com/edenton/svg/blob/master/data/moving_mnist.py.
-
-    See the paper for more information.
-
-    Attributes
-    ----------
-    data : list
-        When testing, list of testing videos represented as uint8 NumPy arrays (length, width, height).
-        When training, list of digits shape to use when generating videos from the dataset.
-    frame_size : int
-        Width and height of the video frames.
-    seq_len : int
-        Number of frames to produce.
-    max_speed : int
-        Maximum speed of moving digits in the videos.
-    deterministic : bool
-        Whether to use the deterministic version of the dataset rather that the stochastic one.
-    num_digits : int
-        Number of digits in each video.
-    train : bool
-        Whether to use the training or testing dataset.
-    eps : float
-        Precision parameter to compute intersections between trajectories and frame borders.
-    """
-    eps = 1e-8
-
-    def __init__(self, data, nx, seq_len, max_speed, deterministic, num_digits, subsample, train, ntrain, dtype):
+    def _collate_fn(self, videos):
         """
+        Collate function for the PyTorch data loader.
+
+        Merges all batch videos in a tensor with shape (length, batch, channels, width, height) and converts their pixel
+        values to [0, 1].
+
         Parameters
         ----------
-        data : list
-            When testing, list of testing videos represented as uint8 NumPy arrays (length, width, height).
-            When training, list of digits shape to use when generating videos from the dataset.
-        nx : int
-            Width and height of the video frames.
-        seq_len : int
-            Number of frames to produce.
-        max_speed : int
-            Maximum speed of moving digits in the videos.
-        deterministic : bool
-            Whether to use the deterministic version of the dataset rather that the stochastic one.
-        num_digits : int
-            Number of digits in each video.
-        train : bool
-            Whether to use the training or testing dataset.
+        videos : list
+            List of uint8 NumPy arrays representing videos with shape (length, batch, width, height, channels).
+
+        Returns
+        -------
+        torch.*.Tensor
+            Batch of videos with shape (batch,length,channels, width, height) and float values lying in [0, 1].
         """
-        self.data = np.array(data)
-        self.frame_size = nx
-        self.seq_len = seq_len
+        seq_len = len(videos[0])
+        batch_size = len(videos)
+        nc = 1 if videos[0].ndim == 3 else 3
+        w = videos[0].shape[1]
+        h = videos[0].shape[2]
+        tensor = torch.zeros((batch_size,seq_len, nc, h, w), dtype = self.dtype)
+        for i, video in enumerate(videos):
+            if nc == 1:
+               # tensor[:, i, 0] += torch.from_numpy(video)
+                tensor[i,:,0]  += torch.from_numpy(video)
+            if nc == 3:
+                tensor[:, i] += torch.from_numpy(np.moveaxis(video, 3, 1))
+        tensor = tensor.type(self.dtype) #tensor.float()
+        tensor = tensor / 255
+        return tensor
+
+class RotatingMNIST(MNIST):
+    def __init__(self, data_path, data_n, n_angles, digit, frame_size=28, dtype=torch.float64) -> None:
+        super().__init__(data_path, dtype)
+        self.digit = digit
+        self.n_angles = n_angles
+        self.data_n = data_n
+        self.frame_size = frame_size
+
+    def _sample_digit(self):
+        self.data_digit_idx = self.data_digit_idx = torch.where(self.data.train_labels == self.digit)
+        data_digit_imgs = self.data.train_data[self.data_digit_idx]
+        random_idx = np.random.randint(0, data_digit_imgs.shape[0], self.data_n)
+        self.data_digit_imgs = data_digit_imgs[random_idx]
+
+    def _gen_angles(self):
+        angles = np.linspace(0, 2 * np.pi, self.n_angles)[1:]
+        self.angles = np.rad2deg(angles)
+    
+    def _sample_rotation(self):
+        """ Rotate the input MNIST image in angles specified """
+        rotated_imgs = np.array(self.data_digit_imgs).reshape((-1, 1, self.frame_size, self.frame_size))
+        for a in self.angles:
+            rotated_imgs = np.concatenate(
+                (
+                    rotated_imgs,
+                    rotate(self.data_digit_imgs, a, axes=(1, 2), reshape=False).reshape((-1, 1, self.frame_size, self.frame_size)),
+                ),
+                axis=1,
+            )
+        return rotated_imgs
+
+
+class MovingMNIST(MNIST):
+    def __init__(self, data_path, subsample, seq_len = 15, max_speed = 4, frame_size=64, num_digits=2, dtype=torch.float64) -> None:
+        super().__init__(data_path, dtype)
+        self.data = [np.array(img, dtype=np.uint8) for i, (img, label) in enumerate(self.data) if i < subsample]
         self.max_speed = max_speed
-        self.deterministic = deterministic
-        self.num_digits = num_digits
-        self.subsample = subsample
-        self.train = train
-        self.Ntrain = ntrain
-        self.dtype = dtype 
-
-    def change_seq_len(self, seq_len):
-        """
-        Changes the length of sequences in the dataset.
-
-        Parameters
-        ----------
-        seq_len : int
-            New sequence length.
-        """
         self.seq_len = seq_len
+        self.frame_size = frame_size
+        self.num_digits = num_digits
+        self.eps = 1e-8
+        self.deterministic = True
+        
 
-    def _filter(self, data):
-        return self.__class__(data, self.frame_size, self.seq_len, self.max_speed, self.deterministic,
-                              self.num_digits, self.subsample, self.train, self.Ntrain, self.dtype)
-
-    def __len__(self):
-        if self.train:
-            # Arbitrary number.
-            # The number is a trade-off for max efficiency
-            # If too low, it is not good for batch size and multi-threaded dataloader
-            # If too high, it is not good for shuffling and sampling
-            return self.Ntrain
-        return len(self.data)
-
-    def __getitem__(self, index):
-        if not self.train:
-            # When testing, pick the selected video (from the precomputed testing set)
-            return self.data[index]
-        # When training, generate videos on the fly
+    def _sample_sequence(self):
+        # generate videos
         x = np.zeros((self.seq_len, self.frame_size, self.frame_size), dtype=np.float32)
         # Generate the trajectories of each digit independently
         for n in range(self.num_digits):
@@ -123,6 +99,7 @@ class MovingMNIST(VideoDataset):
         # In case of overlap, brings back video values to [0, 255]
         x[x > 255] = 255
         return x.astype(np.uint8)
+
 
     def _compute_trajectory(self, nx, ny, init_cond=None):
         """
@@ -311,42 +288,3 @@ class MovingMNIST(VideoDataset):
             return True, (x_inter, y_lim)
         return False, (x_inter, y_lim)
 
-    @classmethod
-    def make_dataset(cls, data_dir, nx, seq_len, max_speed, deterministic, num_digits, subsample, ntrain, dtype, train=True): #TODO add subsample, to decrease digit variance 
-        """
-        Creates a dataset from the directory where the dataset is saved.
-
-        Parameters
-        ----------
-        data_dir : str
-            Path to the dataset.
-        nx : int
-            Width and height of the video frames.
-        seq_len : int
-            Number of frames to produce.
-        max_speed : int
-            Maximum speed of moving digits in the videos.
-        deterministic : bool
-            Whether to use the deterministic version of the dataset rather that the stochastic one.
-        num_digits : int
-            Number of digits in each video.
-        train : bool
-            Whether to use the training or testing dataset.
-
-        Returns
-        -------
-        data.mmnist.MovingMNIST
-        """
-        if train:
-            # When training, only register training MNIST digits
-            digits = datasets.MNIST(data_dir, train=train, download=True) 
-            data = [np.array(img, dtype=np.uint8) for i, (img, label) in enumerate(digits) if i < subsample] 
-        else:
-            # When testining, loads the precomputed videos
-            prefix = '' if deterministic else 's'
-            dataset = np.load(os.path.join(data_dir, f'{prefix}mmnist_test_{num_digits}digits_{nx}.npz'),
-                              allow_pickle=True)
-            sequences = dataset['sequences']
-            data = [sequences[:, i] for i in range(sequences.shape[1])]
-        # Create and return the dataset
-        return cls(data, nx, seq_len, max_speed, deterministic, num_digits, subsample, train, ntrain, dtype)

@@ -1,20 +1,19 @@
-import os, numpy as np, scipy.io as sio
-
+import os
+import numpy as np
 import torch
 import torch.nn as nn
 from   torch.utils import data
-
-from   data.lv import LotkaVolterra
 from torchdiffeq import odeint
-from data.mmnist import MovingMNIST
+
+from data.mnist import MovingMNIST, RotatingMNIST
 from model.misc import io_utils
 
 
 def load_data(args, device, dtype):
 	if args.task=='rot_mnist':
-		trainset, valset = load_rot_mnist_data(args, device, dtype)
+		trainset, valset = load_rmnist_data(args, device, dtype)
 	elif args.task=='mov_mnist':
-		trainset, valset = load_mov_mnist_data(args, dtype)
+		trainset, valset = load_mmnist_data(args, dtype, dtype)
 	elif args.task=='sin':
 		trainset, valset = load_sin_data(args, device, dtype)
 	elif args.task=='lv':
@@ -24,6 +23,59 @@ def load_data(args, device, dtype):
 	else:
 		return ValueError(r'Invalid task {arg.task}')
 	return trainset, valset #, N, T, D
+
+def load_rmnist_data(args, device, dtype):
+	return __load_data(args,device,dtype,'rot_mnist')
+
+def load_mmnist_data(args,device,dtype):
+	return __load_data(args,device,dtype,'mov_mnist')
+
+
+def load_sin_data(args, device, dtype):
+	return __load_data(args, device, dtype, 'sin')
+
+
+def load_lv_data(args, device, dtype):
+	return __load_data(args, device, dtype, 'lv')
+
+
+def load_spiral_data(args, device,dtype):
+	return __load_data(args, device, dtype, 'spiral')
+
+
+def __load_data(args, device, dtype, dataset='sin'):
+	assert dataset=='sin' or dataset=='lv'or dataset=='spiral' or dataset =='mov_mnist' or dataset=='rot_mnist'
+	io_utils.makedirs(args.data_root + '/' + args.task)
+	data_path = os.path.join(args.data_root + '/' + args.task,f'{dataset}-data.pkl')
+	try:
+		X = torch.load(data_path)
+	except:
+		if dataset=='sin':
+			data_loader_fnc = gen_sin_data
+		elif dataset == 'lv':
+			data_loader_fnc = gen_lv_data
+		elif dataset == 'spiral':
+			data_loader_fnc = gen_spiral_data
+		elif dataset == 'rot_mnist':
+			data_loader_fnc = gen_rmnist_data
+		elif dataset == 'mov_mnist':
+			data_loader_fnc = gen_mmnist_data
+		data_loader_fnc(data_path, args.Ntrain+args.Nvalid)
+		X = torch.load(data_path)
+	X = X.to(device).to(dtype)
+	Xtr = X[:args.Ntrain]
+	Xtest = X[args.Ntrain:]
+
+	if dataset == 'rot_mnist' and args.rotrand:
+		T = X.shape[1]
+		Xtr   = torch.cat([Xtr,Xtr[:,1:]],1) # N,2T,1,d,d
+		Xtest = torch.cat([Xtest,Xtest[:,1:]],1) # N,2T,1,d,d
+		t0s_tr   = torch.randint(0,T,[Xtr.shape[0]])
+		t0s_test = torch.randint(0,T,[Xtest.shape[0]])
+		Xtr   = torch.stack([Xtr[i,t0:t0+T]   for i,t0 in enumerate(t0s_tr)])
+		Xtest = torch.stack([Xtest[i,t0:t0+T] for i,t0 in enumerate(t0s_test)])
+
+	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
 
 
 class Dataset(data.Dataset):
@@ -51,90 +103,6 @@ def __build_dataset(num_workers, batch_size, Xtr, Xtest, shuffle=True):
 	testset  = data.DataLoader(testset, **params)
 	return trainset, testset
 
-def __build_dataloader(dataset, params):
-	if params['num_workers']>0:
-		from multiprocessing import Process, freeze_support
-		torch.multiprocessing.set_start_method('spawn', force="True")
-	return data.DataLoader(dataset, **params)
-
-def load_rot_mnist_data(args, device, dtype):
-	fullname = os.path.join(args.data_root, "rot-mnist.mat")
-	dataset = sio.loadmat(fullname)
-	
-	X = dataset['X'].squeeze()
-	if args.digit:
-		Y = dataset['Y'].squeeze() 
-		X = X[Y==args.digit,:,:]
-	T = X.shape[1]
-
-	N = args.Ntrain #train
-	Nt = args.Nvalid + N # valid
-	Xtr   = torch.tensor(X[:N],   device=device, dtype=dtype).view([args.Ntrain,T,1,28,28])
-	Xtest = torch.tensor(X[N:Nt], device=device, dtype=dtype).view([args.Nvalid,T,1,28,28])
-
-	if args.rotrand:
-		Xtr   = torch.cat([Xtr,Xtr[:,1:]],1) # N,2T,1,d,d
-		Xtest = torch.cat([Xtest,Xtest[:,1:]],1) # N,2T,1,d,d
-		t0s_tr   = torch.randint(0,T,[Xtr.shape[0]])
-		t0s_test = torch.randint(0,T,[Xtest.shape[0]])
-		Xtr   = torch.stack([Xtr[i,t0:t0+T]   for i,t0 in enumerate(t0s_tr)])
-		Xtest = torch.stack([Xtest[i,t0:t0+T] for i,t0 in enumerate(t0s_test)])
-
-	# Generators
-	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
-
-
-def load_mov_mnist_data(args, dtype):
-	dataset = MovingMNIST.make_dataset(args.data_root, args.nx, args.seq_len,args.max_speed,
-                                        args.deterministic, args.ndigits, args.subsample, args.Ntrain, dtype)
-	trainset = dataset.get_fold('train')
-	valset = dataset.get_fold('val')
-	# Change validation sequence length, if specified
-	if args.seq_len_valid is not None:
-		valset.change_seq_len(args.seq_len_valid)
-
-	params = {'batch_size': args.batch_size, 'collate_fn': dataset.collate_fn, 'sampler': None, 'drop_last':True,
-				 'shuffle': args.shuffle, 'pin_memory':True, 'num_workers': args.num_workers}
-	return __build_dataloader(trainset, params), __build_dataloader(valset, params)
-
-	# N  = args.Ntrain #train
-	# Nt = args.Nvalid + N # valid
-	# data = np.load(os.path.join(args.data_root,'mov-mnist.npy')).transpose([1,0,2,3])[:Nt,:args.seq_len] # N,T,d,d
-	# data = torch.tensor(data).to(device).to(dtype).unsqueeze(2) / 255.0 # N,T,1,d,d
-	# Xtr, Xtest = data[:N], data[N:]
-	#return __build_dataset(args.num_workers, args.batch_size, Xtr, Xtest)
-
-
-def __load_data(args, device, dtype, dataset='sin'):
-	assert dataset=='sin' or dataset=='lv'or dataset=='spiral'
-	io_utils.makedirs(args.data_root + '/' + args.task)
-	data_path = os.path.join(args.data_root + '/' + args.task,f'{dataset}-data.pkl')
-	try:
-		X = torch.load(data_path)
-	except:
-		if dataset=='sin':
-			data_loader_fnc = gen_sin_data
-		elif dataset == 'lv':
-			data_loader_fnc = gen_lv_data
-		elif dataset == 'spiral':
-			data_loader_fnc = gen_spiral_data
-		data_loader_fnc(data_path, args.Ntrain+args.Nvalid)
-		X = torch.load(data_path)
-	X = X.to(device).to(dtype)
-	return __build_dataset(args.num_workers, args.batch_size, X[:args.Ntrain], X[args.Ntrain:])
-
-
-def load_sin_data(args, device, dtype):
-	return __load_data(args, device, dtype, 'sin')
-
-
-def load_lv_data(args, device, dtype):
-	return __load_data(args, device, dtype, 'lv')
-
-
-def load_spiral_data(args, device,dtype):
-	return __load_data(args, device, dtype, 'spiral')
-
 
 def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1): 
 	phis = torch.rand(N,1) #
@@ -148,31 +116,96 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1):
 	X = X.unsqueeze(-1) # N,T,1
 	torch.save(X, data_path)
 
-def gen_spiral_data(data_path, N, T, dt, ): #TODO implement
-	pass
+def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01): 
+	'''
+	Note: keep T fixed
+	'''
+	def odef(t, x, A):
+		return (x**3) @ A
 
+	#coefficients
+	A  = torch.tensor(np.array([[-0.1, 2.0], [-2.0, -0.1]])) + torch.rand((2,2))*0.1
 
-def gen_lv_data(data_path, N=5, T=50, dt=.2, sig=.01, w=10):
-	d  = 2 # state dim
+	#ode
+	odef_ = lambda t,x: odef(t,x,A)
 
+	#starting points
+	X0 = torch.tensor(np.random.uniform(low=0, high=3, size=(N,2))) 
+	X0 = X0 + 1*torch.rand_like(X0)
+	ts = torch.arange(T)*dt
+
+	#generate sequences
+	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N,2
+	Xt = Xt.permute(1,0,2) #N,T,2
+	torch.save(Xt, data_path)
+
+def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.03, beta=0.5, delta=0.2):
+	N_add = 200 #add aditional data samples as some might be discarded
+	N += N_add
 	alpha = torch.rand([N,1]) / .3 + .1
 	gamma = torch.rand([N,1]) / .3 + .1
-	beta  = 0.5
-	delta = 0.2
 
 	def odef(t,state,alpha,beta,gamma,delta):
 		x,y = state.split([1,1],dim=-1) # M,1 & M,1
 		dx = alpha*x   - beta*x*y # M,1
 		dy = delta*x*y - gamma*y  # M,1
 		return torch.cat([dx,dy],-1)
+	
+	def _check_valid(x0, xt, N, T, DIFF):
+		valid_samples = []
+		invalid_samples = []
+		for i in range(N):
+			initial = x0[i]
+			for m in range(T):
+				if m != 0: #the initial will always be the same
+					frame = xt[m,i]
+					for x in torch.abs(frame - initial): #should pass close to the origin dynamics 
+						if x< DIFF:
+							if i not in valid_samples:
+								valid_samples.append(i)
+								
+			if i not in valid_samples:
+				invalid_samples.append(i)
+		return valid_samples, invalid_samples
 
 	odef_ = lambda t,x: odef(t,x,alpha,beta,gamma,delta)
-	
-	x0 = torch.tensor([5.0,2.5]) + w*torch.rand([N,d])
-	ts = torch.arange(T) * dt
-	xt = odeint(odef_, x0, ts, method='dopri5') # T,N,n
 
-	X = X.reshape(T,N,M,d).permute(2,1,0,3) # M,N,T,d
-	std = (X.max(2)[0] - X.min(2)[0]).sqrt().unsqueeze(2) # N,M,1,d
-	X  += torch.randn([M,N,T,d]) * std * sig
-	torch.save(X, data_path)
+	X0 = torch.tensor(np.random.uniform(low=1.0, high=5.0, size=(N,2))) 
+	X0 = X0 + 1*torch.rand_like(X0)
+	ts = torch.arange(T)*dt
+
+	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N, 2
+
+	valid_s, invalid_s = _check_valid(X0,Xt, N, T, DIFF)
+	#disregard invalud samples (trajectory incomplete)
+	Xt_valid  = Xt[:,valid_s] # T, N, 2
+	Xt_valid = Xt_valid.permute(1,0,2) #N,T,2
+	torch.save(Xt_valid, data_path)
+
+def gen_mmnist_data(data_path, N=10, subsample=50, seq_len=30, ndigits=2): 
+	#load MNIST digits
+	data = MovingMNIST('data/', subsample,seq_len=seq_len, num_digits=ndigits)
+
+	#generate moving sequences
+	videos = []
+	for n in range(N):
+		videos.append(data._sample_sequence())
+	
+	#normalize to [0,1] range
+	Xt = data._collate_fn(videos) #N,T,1,dim,dim
+	torch.save(Xt, data_path)
+
+def gen_rmnist_data(data_path, N=10, n_angles=16, digit=3):
+	#load MNIST digits
+	data = RotatingMNIST('data/', data_n = N, n_angles = n_angles, digit=digit)
+	data._gen_angles()
+	data._sample_digit()
+
+	#generate rotation sequences
+	videos = data._sample_rotation()
+
+	#normalize
+	Xt = data._collate_fn(videos) #N,T,1,dim,dim
+	torch.save(Xt, data_path)
+
+

@@ -37,13 +37,13 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=8000,
+parser.add_argument('--Ntrain', type=int, default=500, #500 sequences 
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=100,
+parser.add_argument('--Nvalid', type=int, default=40, #40 validation sequences 
                     help="Number valid data points")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
-parser.add_argument('--digit', type=int, default=5,
+parser.add_argument('--digit', type=int, default=3,
                     help="Rotating MNIST digit (train data)")
 parser.add_argument('--seq_len', type=int, default=15,
                     help="For Moving MNIST seq_len for training")
@@ -55,7 +55,7 @@ parser.add_argument('--deterministic', type=eval, default=True,
                help='For Moving MNIST only. Whether to consider deterministic, instead of stochastic, bounces.')
 parser.add_argument('--ndigits', type=int, metavar='DIGITS', default=2,
                help='For Moving MNIST only. Number of digits.')
-parser.add_argument('--subsample', type=int, default=600,
+parser.add_argument('--subsample', type=int, default=50, #50 content styles 
                     help="Subsample styles for Moving MNIST")
 parser.add_argument('--seq_len_valid', type=int, default=30,
                     help="For Moving MNIST seq_len for validation")
@@ -95,6 +95,8 @@ parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 parser.add_argument('--contr_loss', type=eval, default=True,
                     help="Contrastive training of the invariant encoder")
+parser.add_argument('--Tin_inv', type=int, default=25,
+                    help="Time frames to select for RNN based Encoder for Invariance")
 
 #ode stuff
 parser.add_argument('--order', type=int, default=1,
@@ -119,6 +121,8 @@ parser.add_argument('--dec_act', type=str, default='relu',
                     help="MLP Decoder activation") 
 parser.add_argument('--cnn_arch', type=str, default='dcgan', choices=CNN_ARCHITECTURE,
                     help="CNN architecture type") 
+parser.add_argument('--Tin_enc', type=int, default=10,
+                    help="Time frames to select for RNN based Encoder for intial state")
                     
 
 #training 
@@ -209,15 +213,5 @@ if __name__ == '__main__':
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
     train_model(args, invodevae, plotter, trainset, validset, logger)
-    #train_mov_mnist(args, invodevae, plotter, trainset, validset, logger)
 
-
-
-
-
-    ### additional experiments
-    # fname = '/Users/cagatay/Nextcloud/InvOdeVaeOriginal/results/2196031/invodevae.pth'
-    # fname = '/mnt/qb/work/bethge/cyildiz40/InvOdeVae/figs/2180009/invodevae.pth'
-    # invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
-    # train_model(args, invodevae, plotter, trainset, testset, logger, freeze_dyn=True)
 

@@ -1,0 +1,14 @@
+sin data
+--Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 20 --Nepoch 300
+
+spiral data
+--Ntrain 500 --Nvalid 40 --Tin_enc 20 --Tin_inv 80 --Nepoch 300
+
+lv data
+--Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 50 --Nepoch 300
+
+moving mnist 
+--Ntrain 500 --Nvalid 40 
+
+rot mnist
+--Ntrain 500 --Nvalid 40 --subsample 50

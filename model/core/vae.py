@@ -88,7 +88,7 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, device='cpu', order=1, cnn_arch='cnn'):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, T_in=10, device='cpu', order=1, cnn_arch='cnn'):
         super(VAE, self).__init__()
 
         # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
@@ -106,13 +106,14 @@ class VAE(nn.Module):
             if order==2:
                 self.encoder_v   = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
 
-        elif task=='sin':
+        elif task=='sin' or task=='spiral' or task =='lv':
             lhood_distribution = 'normal'
-            data_dim = 1
-            self.encoder = EncoderRNN(data_dim, Tin=10, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+            data_dim = 1 if task=='sin' else 2
+            self.encoder = EncoderRNN(data_dim, Tin=T_in, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
             self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
             if order==2:
                 self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+
 
         self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         
@@ -250,7 +251,7 @@ class Decoder(nn.Module):
             self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
-        elif task=='sin':
+        elif task=='sin' or task=='spiral' or task=='lv':
             self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act=act)
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
             self.sp = nn.Softplus()
