@@ -21,30 +21,33 @@ def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
 
 
 class Plotter:
-	def __init__(self, root, task_name):
-		self.task_name    = task_name
-		self.path_prefix  = root
-		if self.task_name=='rot_mnist':
-			self.plot_fit_fnc    = plot_mnist
-		if self.task_name=='mov_mnist':
-			self.plot_fit_fnc = plot_mnist
-		if self.task_name=='sin':
-			self.plot_fit_fnc = plot_sin
-		self.plot_latent_fnc = plot_latent_traj
+    def __init__(self, root, task_name):
+        self.task_name    = task_name
+        self.path_prefix  = root
+        if self.task_name=='rot_mnist':
+            self.plot_fit_fnc    = plot_mnist
+        if self.task_name=='mov_mnist':
+            self.plot_fit_fnc = plot_mnist
+        if self.task_name=='sin':
+            self.plot_fit_fnc = plot_sin
+        if self.task_name == 'lv' or self.task_name =='spiral':
+            self.plot_fit_fnc = plot_2d
+        self.plot_latent_fnc = plot_latent_traj
 
-	def plot_fit(self, X, Xrec, fname=''):
-		fname = self.task_name + '_fit_' + fname + '.png'
-		fname = os.path.join(self.path_prefix, fname)
-		self.plot_fit_fnc(X, Xrec, fname=fname)
+    def plot_fit(self, X, Xrec, fname=''):
+        fname = self.task_name + '_fit_' + fname + '.png'
+        fname = os.path.join(self.path_prefix, fname)
+        self.plot_fit_fnc(X, Xrec, fname=fname)
 
-	def plot_latent(self, z, fname=''):
-		fname = self.task_name + '_latents_' + fname + '.png'
-		fname = os.path.join(self.path_prefix, fname)
-		self.plot_latent_fnc(z, fname=fname)
+    def plot_latent(self, z, fname=''):
+        fname = self.task_name + '_latents_' + fname + '.png'
+        fname = os.path.join(self.path_prefix, fname)
+        self.plot_latent_fnc(z, fname=fname)
 
 
 def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
-    ''' X    - [N,T,d] 
+    '''
+         X    - [N,T,d] 
         Xrec - [L,N,Ttest,d]
     '''
     if N is None:
@@ -65,6 +68,60 @@ def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
         plt.savefig(fname)
         plt.close()
 
+def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L=None):
+    ''' 
+        For spiral and lv dataset (d=2)
+        X    - [N,T,d] 
+        Xrec - [L,N,Ttest,d]
+    '''
+    palette_t = palette[1:]
+    if N is None:
+        N = min(X.shape[0],3)
+    if D is None:
+        D = min(X.shape[-1],3)
+    if L is None:
+        L = min(Xrec.shape[0],1)
+    
+    Xnp    = X.detach().cpu().numpy()
+    Xrecnp = Xrec.detach().cpu().numpy()
+    fig, axs = plt.subplots(N, C, figsize=(9, 9))
+    nidx = 0
+    for n in range(N):
+        for c in range(C):
+            axs[n,c].plot(Xnp[nidx,:,0], Xnp[nidx,:,1], '-', color='tab:blue')
+            for l in range(L):
+                axs[n,c].plot(Xrecnp[l,nidx,:,0],Xrecnp[l,nidx,:,1], '--', color=palette_t[l])
+            nidx +=1
+    
+    for ax in axs.flat:
+        ax.label_outer()
+    if show:
+        plt.show()
+    else:
+        plt.savefig(fname)
+        plt.close()
+
+def plot_2d_origin(X, show=False, fname='predictions.png', D=None, N=None):
+    ''' 
+        For spiral and lv dataset (d=2)
+        X    - [N,T,d] 
+        Xrec - [L,N,Ttest,d]
+    '''
+    if N is None:
+        N = min(X.shape[0],10)
+    if D is None:
+        D = min(X.shape[-1],3)
+    
+    Xnp    = X.detach().cpu().numpy()
+    plt.figure(1,figsize=(9, 9))
+    for n in range(N):
+        plt.plot(Xnp[n,:,0], Xnp[n,:,1], '*-', color=palette[n])
+
+    if show:
+        plt.show()
+    else:
+        plt.savefig(fname)
+        plt.close()
 
 def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
     if Xrec.ndim > X.ndim:

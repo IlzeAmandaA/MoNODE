@@ -1,14 +1,14 @@
 sin data
---Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 20 --Nepoch 300
+python main.py --task sin --Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 20 --Nepoch 300
 
 spiral data
---Ntrain 500 --Nvalid 40 --Tin_enc 20 --Tin_inv 80 --Nepoch 300
+python main.py --task spiral --Ntrain 500 --Nvalid 40 --Tin_enc 20 --Tin_inv 80 --Nepoch 300
 
 lv data
---Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 50 --Nepoch 300
+python main.py --task lv --Ntrain 500 --Nvalid 40 --Tin_enc 10 --Tin_inv 50 --Nepoch 300
 
 moving mnist 
---Ntrain 500 --Nvalid 40 
+python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --seq_len 15 --subsample 50 --cnn_arch dcgan
 
 rot mnist
---Ntrain 500 --Nvalid 40 --subsample 50
+python main.py --task rot_mnist --Ntrain 500 --Nvalid 40 --cnn_arch cnn

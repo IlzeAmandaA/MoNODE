@@ -207,6 +207,7 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
+            print('tr m', tr_minibatch.shape) #20, 16, 1 , 28, 28
             if args.task=='sin' or args.task=='spiral' or args.task=='lv': #slowly increase sequence length
                 [N,T] = tr_minibatch.shape[:2]
                 if args.task == 'sin': #T is 50 keep sequence length short

@@ -7,6 +7,7 @@ from torchdiffeq import odeint
 
 from data.mnist import MovingMNIST, RotatingMNIST
 from model.misc import io_utils
+from model.misc.plot_utils import plot_2d, plot_mnist, plot_sin, plot_2d_origin
 
 
 def load_data(args, device, dtype):
@@ -43,7 +44,7 @@ def load_spiral_data(args, device,dtype):
 	return __load_data(args, device, dtype, 'spiral')
 
 
-def __load_data(args, device, dtype, dataset='sin'):
+def __load_data(args, device, dtype, dataset=None):
 	assert dataset=='sin' or dataset=='lv'or dataset=='spiral' or dataset =='mov_mnist' or dataset=='rot_mnist'
 	io_utils.makedirs(args.data_root + '/' + args.task)
 	data_path = os.path.join(args.data_root + '/' + args.task,f'{dataset}-data.pkl')
@@ -65,6 +66,9 @@ def __load_data(args, device, dtype, dataset='sin'):
 	X = X.to(device).to(dtype)
 	Xtr = X[:args.Ntrain]
 	Xtest = X[args.Ntrain:]
+
+	if dataset == 'mov_mnist':
+		Xtr = Xtr[:,:args.seq_len]
 
 	if dataset == 'rot_mnist' and args.rotrand:
 		T = X.shape[1]
@@ -114,6 +118,7 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1):
 	X  = ts.sin() * A
 	X += torch.randn_like(X)*sig
 	X = X.unsqueeze(-1) # N,T,1
+	plot_sin(X,X.unsqueeze(0),fname='data/sin/example_sin.png')
 	torch.save(X, data_path)
 
 def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01): 
@@ -137,6 +142,7 @@ def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01):
 	#generate sequences
 	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N,2
 	Xt = Xt.permute(1,0,2) #N,T,2
+	plot_2d_origin(Xt,fname='data/spiral/example_spiral.png',N=10)
 	torch.save(Xt, data_path)
 
 def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.03, beta=0.5, delta=0.2):
@@ -180,6 +186,7 @@ def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.03, beta=0.5, delta=0.2):
 	#disregard invalud samples (trajectory incomplete)
 	Xt_valid  = Xt[:,valid_s] # T, N, 2
 	Xt_valid = Xt_valid.permute(1,0,2) #N,T,2
+	plot_2d_origin(Xt_valid,fname='data/lv/example_lv.png',N=10)
 	torch.save(Xt_valid, data_path)
 
 def gen_mmnist_data(data_path, N=10, subsample=50, seq_len=30, ndigits=2): 
@@ -193,6 +200,7 @@ def gen_mmnist_data(data_path, N=10, subsample=50, seq_len=30, ndigits=2):
 	
 	#normalize to [0,1] range
 	Xt = data._collate_fn(videos) #N,T,1,dim,dim
+	plot_mnist(Xt, Xt, fname='data/mov_mnist/example_mmnist.png')
 	torch.save(Xt, data_path)
 
 def gen_rmnist_data(data_path, N=10, n_angles=16, digit=3):
@@ -206,6 +214,7 @@ def gen_rmnist_data(data_path, N=10, n_angles=16, digit=3):
 
 	#normalize
 	Xt = data._collate_fn(videos) #N,T,1,dim,dim
+	plot_mnist(Xt, Xt, fname='data/rot_mnist/example_rmnist.png')
 	torch.save(Xt, data_path)
 
 
