@@ -28,14 +28,14 @@ class INVODEVAE(nn.Module):
     def is_inv(self):
         return self.inv_enc is not None
 
-    def build_decoding(self, ztL, dims, cT=None):
+    def build_decoding(self, ztL, dims, c=None):
         """
         Given a mean of the latent space decode the input back into the original space.
 
         @param ztL: latent variable (L,N,T,q)
         @param inv_z: invaraiant latent variable (L,N,q)
         @param dims: dimensionality of the original variable 
-        @param cT: invariant code (L,N,T,q)
+        @param c: invariant code (L,N,q)
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
         if self.order == 1:
@@ -44,7 +44,8 @@ class INVODEVAE(nn.Module):
             q = ztL.shape[-1]//2
             stL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
-        if cT is not None:
+        if c is not None:
+            cT = torch.stack([c]*ztL.shape[2],-2) # L,N,T,q
             stL = torch.cat([stL, cT], -1) #L,N,T,2q
 
         Xrec = self.vae.decoder(stL, dims) # L,N,T,...
@@ -99,9 +100,8 @@ class INVODEVAE(nn.Module):
         if self.is_inv:
             C = self.inv_enc(X, L=L) # embeddings [L,N,T,q]
             c = C.mean(2) # time-invariant code [L,N,q]
-            cT = torch.stack([c]*T,2) # [L,N,T,q]
         else:
-            C,cT = None, None
+            C,c = None, None
 
         #sample trajectories
         if self.aug:
@@ -113,6 +113,6 @@ class INVODEVAE(nn.Module):
             #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,T,N,nobj,q
             ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*q
-            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], cT)
+            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], c)
 
         return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C

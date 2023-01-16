@@ -202,7 +202,7 @@ if __name__ == '__main__':
     invodevae.to(device)
     invodevae.to(dtype)
 
-    logger.info('********** Model Built {} ODE **********'.format(args.de))
+    logger.info('********** Model Built {} ODE with invariance {} and contrastive loss {} **********'.format(args.de, args.inv_latent_dim, args.contr_loss))
     for arg, value in sorted(vars(args).items()):
         logger.info("Argument %s: %r", arg, value)
     logger.info(invodevae)
