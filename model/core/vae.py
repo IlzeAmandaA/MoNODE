@@ -96,10 +96,10 @@ class VAE(nn.Module):
         if task=='rot_mnist' or task=='mov_mnist':
             lhood_distribution = 'bernoulli'
             if cnn_arch == 'dcgan':
-                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=64, enc_out_dim=ode_latent_dim//order)
+                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=64, enc_out_dim=ode_latent_dim//order, T_in=T_in)
                 self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
             elif cnn_arch == 'cnn':
-                self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt).to(device)
+                self.encoder = PositionEncoderCNN(task, 'normal', ode_latent_dim//order, n_filt, T_in).to(device)
                 self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
             else:
                 raise SystemExit('Invalid encoder/decoder selected')
@@ -211,10 +211,13 @@ class EncoderCNN(AbstractEncoder):
             return z0_mu
 
 class PositionEncoderCNN(EncoderCNN):
-    def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):
-        super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels)
+    def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1, T_in=1):
+        super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels*T_in)
+        self.T_in = T_in
     def forward(self,X):
-        return super().forward(X[:,0])
+        [N,T,nc,d,d] = X.shape
+        X_in = X[:,:self.T_in].reshape(N, self.T_in*nc, d, d)
+        return super().forward(X_in)
 
 class VelocityEncoderCNN(EncoderCNN):
     def __init__(self, num_frames, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1):

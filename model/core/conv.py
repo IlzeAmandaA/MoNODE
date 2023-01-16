@@ -22,7 +22,7 @@ import model.core.utils as utils
 
 eps = 1e-5
 
-def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
+def encoder_factory(name, nx, nc, nh, nf, enc_out_dim, T_in):
     """
     Creates an encoder with the given parameters according the input architecture name.
 
@@ -38,6 +38,8 @@ def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
         Number of dimensions of the output flat vector. (they use 128)
     nf : int
         Number of filters per channel of the first convolution. (64)
+    T_in : int
+        Number of input frames for the initial position
 
     Returns
     -------
@@ -45,7 +47,7 @@ def encoder_factory(name, nx, nc, nh, nf, enc_out_dim):
         Either a module.conv.DCGAN64Encoder or a module.conv.VGG64Encoder depending on the chosen architecture.
     """
     if name == 'dcgan':
-        return DCGAN64Encoder(nc, nh, nf, enc_out_dim)
+        return DCGAN64Encoder(nc, nh, nf, enc_out_dim, T_in)
     if name == 'vgg':
         return VGG64Encoder(nc, nh, nf)
     raise ValueError(f'No encoder named \'{name}\'')
@@ -183,7 +185,7 @@ class DCGAN64Encoder(BaseEncoder):
     """
     Module implementing the DCGAN encoder.
     """
-    def __init__(self, nc, nh, nf, enc_out_dim):
+    def __init__(self, nc, nh, nf, enc_out_dim, T_in):
         """
         Parameters
         ----------
@@ -195,8 +197,9 @@ class DCGAN64Encoder(BaseEncoder):
             Number of filters per channel of the first convolution.
         """
         super(DCGAN64Encoder, self).__init__(nh)
+        self.T_in = T_in
         self.conv = nn.ModuleList([
-            make_conv_block(nn.Conv2d(nc, nf, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu', bn=False),
+            make_conv_block(nn.Conv2d(nc*self.T_in, nf, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu', bn=False),
             make_conv_block(nn.Conv2d(nf, nf * 2, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu'),
             make_conv_block(nn.Conv2d(nf * 2, nf * 4, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu'),
             make_conv_block(nn.Conv2d(nf * 4, nf * 8, kernel_size=4, stride=2, padding=1, bias=False), activation='leaky_relu')
@@ -204,10 +207,12 @@ class DCGAN64Encoder(BaseEncoder):
         self.last_conv = make_conv_block(nn.Conv2d(nf * 8, nh, kernel_size=4, stride=1, padding=0, bias=False), activation='tanh')
         self.fc1 = nn.Linear(nh, enc_out_dim)
         self.fc2 = nn.Linear(nh, enc_out_dim)
+        
 
-    def forward(self, x):
-        #only condition on the inital frame 
-        return super().forward(x[:,0])
+    def forward(self, X):
+        [N,T,nc,d,d] = X.shape
+        X_in = X[:,:self.T_in].reshape(N, self.T_in*nc, d, d)
+        return super().forward(X_in)
 
 class VGG64Encoder(BaseEncoder):
     """

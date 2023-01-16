@@ -41,24 +41,12 @@ parser.add_argument('--Ntrain', type=int, default=500, #500 sequences
                     help="Number training data points")
 parser.add_argument('--Nvalid', type=int, default=40, #40 validation sequences 
                     help="Number valid data points")
+parser.add_argument('--seq_len', type=int, default=15, 
+                    help="Number of training frames for Moving Mnist train reconstruction")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
-parser.add_argument('--digit', type=int, default=3,
-                    help="Rotating MNIST digit (train data)")
-parser.add_argument('--seq_len', type=int, default=15,
-                    help="For Moving MNIST seq_len for training")
-parser.add_argument('--nx', type=int, default=64,
-                    help="Frame size")
-parser.add_argument('--max_speed', type=int, metavar='SPEED', default=4,
-               help='For Moving MNIST only. Digits maximum speed.')
-parser.add_argument('--deterministic', type=eval, default=True,
-               help='For Moving MNIST only. Whether to consider deterministic, instead of stochastic, bounces.')
-parser.add_argument('--ndigits', type=int, metavar='DIGITS', default=2,
-               help='For Moving MNIST only. Number of digits.')
 parser.add_argument('--subsample', type=int, default=50, #50 content styles 
                     help="Subsample styles for Moving MNIST")
-parser.add_argument('--seq_len_valid', type=int, default=30,
-                    help="For Moving MNIST seq_len for validation")
 parser.add_argument('--shuffle', type=eval, default=True,
                help='For Moving MNIST whetehr to shuffle the data')
 
@@ -95,7 +83,7 @@ parser.add_argument('--num_inducing_inv', type=int, default=100,
                     help="Number of inducing points for inavariant GP")
 parser.add_argument('--contr_loss', type=eval, default=True,
                     help="Contrastive training of the invariant encoder")
-parser.add_argument('--Tin_inv', type=int, default=25,
+parser.add_argument('--T_inv', type=int, default=25,
                     help="Time frames to select for RNN based Encoder for Invariance")
 
 #ode stuff
@@ -121,7 +109,7 @@ parser.add_argument('--dec_act', type=str, default='relu',
                     help="MLP Decoder activation") 
 parser.add_argument('--cnn_arch', type=str, default='dcgan', choices=CNN_ARCHITECTURE,
                     help="CNN architecture type") 
-parser.add_argument('--Tin_enc', type=int, default=10,
+parser.add_argument('--T_in', type=int, default=10,
                     help="Time frames to select for RNN based Encoder for intial state")
                     
 

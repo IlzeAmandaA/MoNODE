@@ -100,8 +100,6 @@ def __build_dataset(num_workers, batch_size, Xtr, Xtest, shuffle=True):
 		from multiprocessing import Process, freeze_support
 		torch.multiprocessing.set_start_method('spawn', force="True")
 
-	print('whole xtr', Xtr.shape)
-	print('whole valid', Xtest.shape)
 	params = {'batch_size': batch_size, 'shuffle': shuffle, 'num_workers': num_workers, 'drop_last': True}
 	trainset = Dataset(Xtr)
 	trainset = data.DataLoader(trainset, **params)

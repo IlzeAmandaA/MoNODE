@@ -81,7 +81,6 @@ def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L
         D = min(X.shape[-1],3)
     if L is None:
         L = min(Xrec.shape[0],1)
-    
     Xnp    = X.detach().cpu().numpy()
     Xrecnp = Xrec.detach().cpu().numpy()
     fig, axs = plt.subplots(N, C, figsize=(9, 9))

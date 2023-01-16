@@ -69,7 +69,7 @@ def build_model(args, device, dtype):
             last_layer_gp = None
         
         inv_enc = INV_ENC(task=args.task, last_layer_gp=last_layer_gp, inv_latent_dim=args.inv_latent_dim,
-            n_filt=args.n_filt, rnn_hidden=10, Tin=args.Tin_inv, device=device).to(dtype)
+            n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, device=device).to(dtype)
 
     else:
         inv_enc = None
@@ -80,7 +80,7 @@ def build_model(args, device, dtype):
     # encoder & decoder
     vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
             dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
-            inv_latent_dim=args.inv_latent_dim, T_in=args.Tin_enc, order=args.order, cnn_arch=args.cnn_arch, device=device).to(dtype)
+            inv_latent_dim=args.inv_latent_dim, T_in=args.T_in, order=args.order, cnn_arch=args.cnn_arch, device=device).to(dtype)
 
     #full model
     inodevae = INVODEVAE(flow = flow,
@@ -145,7 +145,7 @@ def contrastive_loss(C):
     return -pos
 
 
-def compute_loss(model, data, L, seed=None, contr_loss=False):
+def compute_loss(model, data, L, T_valid=None, contr_loss=False, train=True):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -155,8 +155,8 @@ def compute_loss(model, data, L, seed=None, contr_loss=False):
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
-    in_data = data if seed==None else data[:,:seed]
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
+    in_data = data if T_valid==None else data[:,:T_valid] #for validation reconstruction on half the sequence length, see forecasting for the other half
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T, train=train)
     lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
     if contr_loss:
         contr_learn_loss = contrastive_loss(C)
@@ -245,7 +245,7 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
             test_elbos,test_mses,lhoods = [],[],[]
             for itr_test,valid_batch in enumerate(validset):
                 valid_batch = valid_batch.to(invodevae.device)
-                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, valid_batch, L=1, seed=valid_batch.shape[1]//2)
+                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, valid_batch, L=1, T_valid=valid_batch.shape[1]//2, train=False)
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
                 lhoods.append(nlhood.item())
@@ -254,8 +254,8 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1])[:2]
+                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1], train=False)[:2]
+                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1], train=False)[:2]
 
                 plot_results(plotter, args, ztL_tr, Xrec_tr, tr_minibatch, ztL_te, \
                     Xrec_te, valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
