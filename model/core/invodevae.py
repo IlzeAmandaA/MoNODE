@@ -105,7 +105,7 @@ class INVODEVAE(nn.Module):
 
         #sample trajectories
         if self.aug:
-            cL = cL.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
+            cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
             ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
             ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
             Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
