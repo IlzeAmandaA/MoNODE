@@ -63,7 +63,7 @@ class INVODEVAE(nn.Module):
     def sample_augmented_trajectories(self, z0L, cL, T, L=1):
         '''
         @param z0L - initial latent encoding of shape [L,N, Nobj,q]
-        @param cL - invariant code  [L,N,Nobj,q]
+        @param cL - invariant code  [L,N,q]
         '''
         ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0L.device)
         ztL = [self.flow(z0, ts, zc) for z0,zc in zip(z0L,cL)] # sample L trajectories
@@ -105,8 +105,8 @@ class INVODEVAE(nn.Module):
 
         #sample trajectories
         if self.aug:
-            c = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
-            ztL  = self.sample_augmented_trajectories(z0, c, T, L) # L,N,T,Nobj, 2q
+            cL = cL.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
+            ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
             ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
             Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
         else:

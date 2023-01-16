@@ -203,6 +203,7 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} ODE with invariance {} and contrastive loss {} **********'.format(args.de, args.inv_latent_dim, args.contr_loss))
+    logger.info('********** Training Augemented Dynamics: {} **********'.format(invodevae.aug))
     for arg, value in sorted(vars(args).items()):
         logger.info("Argument %s: %r", arg, value)
     logger.info(invodevae)

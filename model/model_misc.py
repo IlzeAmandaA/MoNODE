@@ -24,7 +24,7 @@ def build_model(args, device, dtype):
     """
 
     #differential function
-    aug = args.task=='sin' or args.task=='spiral' or args.task=='lv' and args.inv_latent_dim>0
+    aug = (args.task=='sin' or args.task=='spiral' or args.task=='lv') and args.inv_latent_dim>0
     Nobj = 1 #TODO maybe also make parser variable that you can change if needed
     if aug: # augmented dynamics
         D_in  = args.ode_latent_dim + args.inv_latent_dim
@@ -207,7 +207,6 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
-            print('tr m', tr_minibatch.shape) #20, 16, 1 , 28, 28
             if args.task=='sin' or args.task=='spiral' or args.task=='lv': #slowly increase sequence length
                 [N,T] = tr_minibatch.shape[:2]
                 if args.task == 'sin': #T is 50 keep sequence length short
