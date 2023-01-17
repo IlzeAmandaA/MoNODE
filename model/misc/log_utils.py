@@ -18,32 +18,25 @@ class CachedHyperparametrs(object):
 
 
 class CachedRunningAverageMeter(object):
-    """Computes and stores the weighted moving average (WMA) and current value over optimization iterations"""
+    """Computes and stores the average and current value"""
 
-    def __init__(self, period=10):
-        self.period = period
-        self.compute_weights()
+    def __init__(self, momentum=0.99):
+        self.momentum = momentum
         self.reset()
-
-    def compute_weights(self):
-        normalize = (self.period * (self.period + 1))//2
-        self.weights = np.array([self.period - t for t in range(self.period)])/normalize
 
     def reset(self):
         self.val = None
         self.avg = 0
-        self.vals = np.array([])
+        self.vals = []
         self.iters = []
 
     def update(self, val, iter):
         if self.val is None:
             self.avg = val
-        elif len(self.vals)<self.period:
-            self.avg = np.mean(np.array(self.vals))
         else:
-            self.avg = np.average(np.flip(self.vals[-self.period:]),weights=self.weights)
+            self.avg = self.avg * self.momentum + val * (1 - self.momentum)
         self.val = val
-        self.vals = np.append(self.vals, val)
+        self.vals.append(val)
         self.iters.append(iter)
 
 class CachedAverageMeter(object):

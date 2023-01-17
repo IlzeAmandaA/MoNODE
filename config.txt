@@ -1,19 +1,26 @@
 sin data
-NeuralODE+inv+contrasitve: python main.py --task sin --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 20 --Nepoch 300
-adjust: --Tin_inv 30
-NeuralODE+inv: python main.py --task sin --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 20 --contr_loss False --Nepoch 300 
-NeuralODE: python main.py --task sin --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 20 --contr_loss False --inv_latent_dim 0 --Nepoch 300 
+NeuralODE+inv+contrasitve: python main.py --task sin  --Ntrain 500 --Nvalid 50 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000
+
+NeuralODE+inv: python main.py  --task sin --inv_latent_dim 4 --contr_loss False  --Ntrain 500 --Nvalid 40 --T_in 3 --T_inv 10 --ode_latent_dim 4 --Nepoch 1000 
+NeuralODE: python main.py  --task sin --contr_loss False --inv_latent_dim 0  --Ntrain 500 --Nvalid 40 --T_in 3 --T_inv 10  --ode_latent_dim 4 --Nepoch 1000 
 
 spiral data
-python main.py --task spiral --Ntrain 500 --Nvalid 40 --T_in 20 --T_inv 80 --Nepoch 500
+python main.py --task spiral --Ntrain 800 --Nvalid 50 --T_in 8 --T_inv 40 --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 3000
+
+python main.py --task spiral --Ntrain 500 --Nvalid 40 --T_in 20 --T_inv 80 --Nepoch 500 --contr_loss False
+python main.py --task spiral --Ntrain 500 --Nvalid 40 --T_in 20 --T_inv 80 --Nepoch 500 --contr_loss False --inv_latent_dim 0
 
 lv data
-python main.py --task lv --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 50 --Nepoch 500 
+python main.py --task lv --Ntrain 800 --Nvalid 50 --T_in 8 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+
+python main.py --task lv --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 50 --Nepoch 500 --contr_loss False
+python main.py --task lv --Ntrain 500 --Nvalid 40 --T_in 10 --T_inv 50 --Nepoch 500 --contr_loss False --inv_latent_dim 0
 
 moving mnist (seq_len specifies that training data uses 15 time frames)
+python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 10 --Nepoch 2500
+
 python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --Nepoch 2500
 
 rot mnist
 python main.py --task rot_mnist --Ntrain 500 --Nvalid 40 --cnn_arch cnn  --T_in 1 --T_inv 16 --Nepoch 500
 
-Where T_in conditioning, 

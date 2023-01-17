@@ -128,20 +128,21 @@ def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01):
 	def odef(t, x, A):
 		return (x**3) @ A
 
-	#coefficients
-	A  = torch.tensor(np.array([[-0.1, 2.0], [-2.0, -0.1]])) + torch.rand((2,2))*0.1
+	#coefficient for every data point
+	A  = torch.tensor(np.array([[-0.1, 2.0], [-2.0, -0.1]])) + torch.rand((N,2,2))*0.1
 
 	#ode
 	odef_ = lambda t,x: odef(t,x,A)
 
-	#starting points
-	X0 = torch.tensor(np.random.uniform(low=0, high=3, size=(N,2))) 
+	#random starting point for every sequence 
+	X0 = torch.tensor(np.random.uniform(low=1, high=3, size=(N,1,2))) 
 	X0 = X0 + 1*torch.rand_like(X0)
 	ts = torch.arange(T)*dt
 
 	#generate sequences
-	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N,2
-	Xt = Xt.permute(1,0,2) #N,T,2
+	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N,1,2
+	Xt = Xt.permute(1,0,2,3) #N,T,1,2
+	Xt = Xt.reshape(N,T,2)
 	plot_2d_origin(Xt,fname='data/spiral/example_spiral.png',N=10)
 	torch.save(Xt, data_path)
 

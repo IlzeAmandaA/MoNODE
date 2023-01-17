@@ -69,7 +69,7 @@ class INVODEVAE(nn.Module):
         ztL = [self.flow(z0, ts, zc) for z0,zc in zip(z0L,cL)] # sample L trajectories
         return torch.stack(ztL) # L,N,T,nobj,2q
 
-    def forward(self, X, L=1, T_custom=None, train=True):
+    def forward(self, X, L=1, T_custom=None):
         try:
             self.inv_enc.last_layer_gp.build_cache()
         except:
@@ -98,7 +98,7 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         if self.is_inv:
-            C = self.inv_enc(X, L=L, train=train) # embeddings [L,N,T,q]
+            C = self.inv_enc(X, L=L) # embeddings [L,N,T,q]
             c = C.mean(2) # time-invariant code [L,N,q]
         else:
             C,c = None, None

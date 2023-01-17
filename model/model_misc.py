@@ -129,7 +129,9 @@ def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
 
 
 def contrastive_loss(C):
-    ''' C - invariant embeddings [N,T,q] or [L,N,T,q] '''
+    ''' 
+    C - invariant embeddings [N,T,q] or [L,N,T,q] 
+    '''
     C = C.mean(0) if C.ndim==4 else C
     C = C / C.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
     N_,T_,q_ = C.shape
@@ -139,13 +141,10 @@ def contrastive_loss(C):
     idxset0 = torch.cat([idx[0].reshape(-1)+ n*T_ for n in range(N_)])
     idxset1 = torch.cat([idx[1].reshape(-1)+ n*T_ for n in range(N_)])
     pos = Z[idxset0,idxset1].sum()
-    # Z[idxset0,idxset1] *= 0
-    # neg = Z.sum() * 0.0
-    # contr_learn_loss = neg-pos
-    return -pos
+    return -pos, Z
 
 
-def compute_loss(model, data, L, T_valid=None, contr_loss=False, train=True):
+def compute_loss(model, data, L, contr_loss=False, T_valid=None):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -155,18 +154,20 @@ def compute_loss(model, data, L, T_valid=None, contr_loss=False, train=True):
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
-    in_data = data if T_valid==None else data[:,:T_valid] #for validation reconstruction on half the sequence length, see forecasting for the other half
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T, train=train)
+    #in_data = data if T_valid==None else data[:,:T_valid] #for validation reconstruction on half the sequence length, see forecasting for the other half
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(data, L, T_custom=T)
     lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
     if contr_loss:
-        contr_learn_loss = contrastive_loss(C)
+        contr_learn_loss, Z_matrix = contrastive_loss(C)
     else:
         contr_learn_loss = torch.zeros_like(lhood)
+        Z_matrix = torch.zeros((2,2))
+        
     lhood = lhood * model.num_observations
     kl_z0 = kl_z0 * model.num_observations
     loss  = - lhood + kl_z0 + kl_gp + contr_learn_loss
     mse   = torch.mean((Xrec-data)**2)
-    return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
+    return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss, Z_matrix
 
 
 def freeze_pars(par_list):
@@ -179,13 +180,14 @@ def freeze_pars(par_list):
 
 
 def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn=False):
-    inducing_kl_meter = log_utils.CachedRunningAverageMeter(10)
-    elbo_meter  = log_utils.CachedRunningAverageMeter(10)
-    nll_meter   = log_utils.CachedRunningAverageMeter(10)
-    kl_z0_meter = log_utils.CachedRunningAverageMeter(10)
-    mse_meter   = log_utils.CachedRunningAverageMeter(10)
-    contr_meter = log_utils.CachedRunningAverageMeter(10)
-    time_meter  = log_utils.CachedAverageMeter()
+    inducing_kl_meter = log_utils.CachedRunningAverageMeter(0.97)
+    elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
+    nll_meter   = log_utils.CachedRunningAverageMeter(0.97)
+    kl_z0_meter = log_utils.CachedRunningAverageMeter(0.97)
+    tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
+    contr_meter = log_utils.CachedRunningAverageMeter(0.97)
+    te_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
+    test_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
 
     logger.info('********** Started Training **********')
 
@@ -223,7 +225,7 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
                     t0s = torch.randint(0,T-T_,[N_])  #select a random initial point from the sequence
                     tr_minibatch = tr_minibatch.repeat([N_,1,1])
                     tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
-            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
+            loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost, tr_Z_matrix = \
                 compute_loss(invodevae, tr_minibatch, L, contr_loss=args.contr_loss)
 
             optimizer.zero_grad()
@@ -234,10 +236,9 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
             elbo_meter.update(loss.item(), global_itr)
             nll_meter.update(nlhood.item(), global_itr)
             kl_z0_meter.update(kl_z0.item(), global_itr)
-            mse_meter.update(tr_mse.item(), global_itr)
+            tr_mse_meter.update(tr_mse.item(), global_itr)
             contr_meter.update(contr_learn_cost.item(), global_itr)
             inducing_kl_meter.update(kl_u.item(), global_itr)
-            time_meter.update(time.time() - begin, global_itr)
             global_itr +=1
 
         with torch.no_grad():
@@ -245,17 +246,23 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
             test_elbos,test_mses,lhoods = [],[],[]
             for itr_test,valid_batch in enumerate(validset):
                 valid_batch = valid_batch.to(invodevae.device)
-                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _ = compute_loss(invodevae, valid_batch, L=1, T_valid=valid_batch.shape[1]//2, train=False)
+                test_elbo, nlhood, kl_z0, kl_gp, Xrec_te, ztL_te, test_mse, _, te_Z_matrix = compute_loss(invodevae, valid_batch, L=1) #, T_valid=valid_batch.shape[1]//2)
                 test_elbos.append(test_elbo.item())
                 test_mses.append(test_mse.item())
                 lhoods.append(nlhood.item())
             test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
+
+            #update test loggers
+            te_mse_meter.update(test_mse.item(), ep)
+            test_elbo_meter.update(test_elbo.item(),ep)
+
             logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | test_elbo {:5.3f} | test_mse:{:5.3f} | contr_loss:{:5.3f}'.\
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, test_elbo, test_mse, contr_meter.avg))   
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1], train=False)[:2]
-                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1], train=False)[:2]
+                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
+                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1])[:2]
 
                 plot_results(plotter, args, ztL_tr, Xrec_tr, tr_minibatch, ztL_te, \
-                    Xrec_te, valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, mse_meter)
+                    Xrec_te, valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, \
+                        tr_mse_meter, te_mse_meter, test_elbo_meter, te_Z_matrix)
