@@ -215,7 +215,7 @@ def train_model(args, invodevae, plotter, trainset, validset, logger, freeze_dyn
                     ep_inc = T //args.Nepoch + 10
                     T_  = min(T, ep//ep_inc+5)
                 elif args.task == 'spiral': #T is 1000 increase seqence length more
-                    ep_inc = T // args.Nepoch
+                    ep_inc = T // args.Nepoch + 1 
                     T_ = min(T, ep//ep_inc+20)
                 elif args.task == 'lv': #T is 100
                     ep_inc = T//args.Nepoch + 3

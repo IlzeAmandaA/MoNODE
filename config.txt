@@ -22,5 +22,5 @@ python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --subsample 50 --seq_l
 python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --Nepoch 2500
 
 rot mnist
-python main.py --task rot_mnist --Ntrain 500 --Nvalid 40 --cnn_arch cnn  --T_in 1 --T_inv 16 --Nepoch 500
+python main.py --task rot_mnist --Ntrain 500 --Nvalid 40 --cnn_arch cnn  --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 8 --Nepoch 1000
 
