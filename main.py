@@ -37,16 +37,18 @@ parser.add_argument('--num_workers', type=int, default=0,
                     help="number of workers")
 parser.add_argument('--data_root', type=str, default='data/',
                     help="general data location")
-parser.add_argument('--Ntrain', type=int, default=500, #500 sequences 
+parser.add_argument('--Ntrain', type=int, default=500, 
                     help="Number training data points")
-parser.add_argument('--Nvalid', type=int, default=40, #40 validation sequences 
+parser.add_argument('--Nvalid', type=int, default=50, 
                     help="Number valid data points")
+parser.add_argument('--Ntest', type=int, default=50, 
+                    help="Number of testing data points")
 parser.add_argument('--seq_len', type=int, default=15, 
                     help="Number of training frames for Moving Mnist train reconstruction")
 parser.add_argument('--rotrand', type=eval, default=True,
                     help="if True multiple initial rotation angles")
-parser.add_argument('--subsample', type=int, default=50, #50 content styles 
-                    help="Subsample styles for Moving MNIST")
+parser.add_argument('--style', type=list, default=[0,1,2,3,4,5,6,7,8,9], 
+                    help="List of styles (digits) to use")
 parser.add_argument('--shuffle', type=eval, default=True,
                help='For Moving MNIST whetehr to shuffle the data')
 
@@ -182,7 +184,7 @@ if __name__ == '__main__':
     logger.info('********** Running model on {} ********** '.format(device))
 
     ########### data ############ ``
-    trainset, validset = load_data(args, device, dtype)
+    trainset, validset, testset = load_data(args, device, dtype)
     logger.info('********** {} dataset with loaded ********** '.format(args.task))
 
     ########### model ###########
@@ -201,6 +203,6 @@ if __name__ == '__main__':
         invodevae.load_state_dict(torch.load(fname,map_location=torch.device(device)))
         logger.info('********** Resume training for model {} ********** '.format(fname))
 
-    train_model(args, invodevae, plotter, trainset, validset, logger)
+    train_model(args, invodevae, plotter, trainset, validset, testset, logger)
 
 

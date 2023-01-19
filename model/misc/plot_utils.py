@@ -11,7 +11,7 @@ palette = list(mcolors.TABLEAU_COLORS.keys())
 
 def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     testset, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, \
-        tr_mse_meter, test_mse_meter, test_elbo_meter, te_Z_matrix):
+        tr_mse_meter, test_mse_meter, test_elbo_meter):
 
     plotter.plot_fit(trainset, tr_rec, 'tr')
     plotter.plot_fit(testset,  te_rec, 'test')
@@ -19,7 +19,7 @@ def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
     plotter.plot_latent(ztl_tr, 'tr')
     plotter.plot_latent(ztl_te, 'test')
 
-    plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter, te_Z_matrix) # logpL_meter, logztL_meter, args)
+    plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter) # logpL_meter, logztL_meter, args)
 
 
 class Plotter:
@@ -82,7 +82,7 @@ def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L
     if D is None:
         D = min(X.shape[-1],3)
     if L is None:
-        L = min(Xrec.shape[0],1)
+        L = Xrec.shape[0]
     Xnp    = X.detach().cpu().numpy()
     Xrecnp = Xrec.detach().cpu().numpy()
     fig, axs = plt.subplots(N, C, figsize=(9, 9))
@@ -178,7 +178,7 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
         plt.close()
 
 
-def plot_trace(args, elbo_meter=None, nll_meter=None,  kl_z0_meter=None, inducing_kl_meter=None, tr_mse_meter=None, test_mse_meter=None, test_elbo_meter=None, te_Z_matrix=None, make_plot=False, data_dir='log_files'): 
+def plot_trace(args, elbo_meter=None, nll_meter=None,  kl_z0_meter=None, inducing_kl_meter=None, tr_mse_meter=None, test_mse_meter=None, test_elbo_meter=None, make_plot=False, data_dir='log_files'): 
     fig, axs = plt.subplots(5, 1, figsize=(10, 10))
 
     titles = ["Loss (-elbo)", "Obs NLL", "KL-z0", "KL-U", "Train MSE"] #, "Test MSE", "Test ELBO"]
@@ -202,6 +202,5 @@ def plot_trace(args, elbo_meter=None, nll_meter=None,  kl_z0_meter=None, inducin
         np.save(os.path.join(args.save,data_dir,'zkl.npy'), np.stack((kl_z0_meter.iters, kl_z0_meter.vals), axis=1))
         np.save(os.path.join(args.save,data_dir,'te_elbo.npy'), np.stack((test_elbo_meter.iters, test_elbo_meter.vals), axis=1))
         np.save(os.path.join(args.save,data_dir,'te_mse.npy'), np.stack((test_mse_meter.iters, test_mse_meter.vals), axis=1))
-        np.save(os.path.join(args.save,data_dir,'te_Z_matrix.npy'), te_Z_matrix.detach().cpu().numpy())
         if inducing_kl_meter is not None:
             np.save(os.path.join(args.save,data_dir,'inducingkl.npy'), np.stack((inducing_kl_meter.iters,inducing_kl_meter.vals), axis=1))

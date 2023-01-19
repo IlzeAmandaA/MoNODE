@@ -212,12 +212,10 @@ class EncoderCNN(AbstractEncoder):
 
 class PositionEncoderCNN(EncoderCNN):
     def __init__(self, task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1, T_in=1):
-        super().__init__(task, out_distr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels*T_in)
+        super().__init__(task, out_disstr=out_distr, enc_out_dim=enc_out_dim, n_filt=n_filt, n_in_channels=n_in_channels*T_in)
         self.T_in = T_in
     def forward(self,X):
         [N,T,nc,d,d] = X.shape
-        print('tin', self.T_in)
-        print('x', X.shape)
         X_in = X[:,:self.T_in].reshape(N, self.T_in*nc, d, d)
         return super().forward(X_in)
 

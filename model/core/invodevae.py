@@ -98,7 +98,7 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         if self.is_inv:
-            C = self.inv_enc(X, L=L) # embeddings [L,N,T,q]
+            C = self.inv_enc(X, L=L) # embeddings [L,N,T,q] or [L,N,ns,q]
             c = C.mean(2) # time-invariant code [L,N,q]
         else:
             C,c = None, None

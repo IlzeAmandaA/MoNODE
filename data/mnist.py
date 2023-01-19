@@ -5,7 +5,7 @@ import torch
 
 class MNIST(object):
     def __init__(self, data_path, dtype) -> None:
-        self.data = datasets.MNIST(data_path, train=True, download=True)
+        self.mnist = datasets.MNIST(data_path, train=True, download=True)
         self.dtype = dtype
 
     def _collate_fn(self, videos):
@@ -50,8 +50,8 @@ class RotatingMNIST(MNIST):
         self.frame_size = frame_size
 
     def _sample_digit(self):
-        self.data_digit_idx = self.data_digit_idx = torch.where(self.data.train_labels == self.digit)
-        data_digit_imgs = self.data.train_data[self.data_digit_idx]
+        self.data_digit_idx  = torch.where(self.mnist.targets == self.digit)
+        data_digit_imgs = self.mnist.data[self.data_digit_idx]
         random_idx = np.random.randint(0, data_digit_imgs.shape[0], self.data_n)
         self.data_digit_imgs = data_digit_imgs[random_idx]
 
@@ -74,23 +74,33 @@ class RotatingMNIST(MNIST):
 
 
 class MovingMNIST(MNIST):
-    def __init__(self, data_path, subsample, seq_len = 15, max_speed = 4, frame_size=64, num_digits=2, dtype=torch.float64) -> None:
+    def __init__(self, data_path, style, seq_len = 15, max_speed = 4, frame_size=64, num_digits=2, dtype=torch.float64) -> None:
         super().__init__(data_path, dtype)
-        self.data = [np.array(img, dtype=np.uint8) for i, (img, label) in enumerate(self.data) if i < subsample]
+        self.style = style
         self.max_speed = max_speed
         self.seq_len = seq_len
         self.frame_size = frame_size
         self.num_digits = num_digits
         self.eps = 1e-8
         self.deterministic = True
+
+    def _sample_style_idx(self):
+        self.data_digit_idx = []
+        for style_idx in self.style:
+            for idx,target in enumerate(self.mnist.targets):
+                if style_idx==target and idx not in self.data_digit_idx:
+                    self.data_digit_idx.append(idx)
+                    break
         
+    def _subsample_data(self):
+        self.data_sub = [np.array(img, dtype=np.uint8) for img in self.mnist.data[self.data_digit_idx]]
 
     def _sample_sequence(self):
         # generate videos
         x = np.zeros((self.seq_len, self.frame_size, self.frame_size), dtype=np.float32)
         # Generate the trajectories of each digit independently
         for n in range(self.num_digits):
-            img = self.data[np.random.randint(len(self.data))]  # Random digit
+            img = self.data_sub[np.random.randint(len(self.data_sub))]  # Random digit
             trajectory = self._compute_trajectory(*img.shape)  # Generate digit trajectory
             for t in range(self.seq_len):
                 sx, sy, _, _ = trajectory[t]
