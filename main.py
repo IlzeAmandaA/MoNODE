@@ -18,7 +18,7 @@ from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
 from data.data_utils import load_data
 
-SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "euler"]
+SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
 DE_MODELS = ['MLP', 'SVGP']
 INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
