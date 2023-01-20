@@ -24,6 +24,7 @@ INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin', 'spiral', 'lv']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
+LV_TYPE = ['clean', 'all']
 parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
 
 # TASK = 'rot_mnist'
@@ -45,8 +46,8 @@ parser.add_argument('--Ntest', type=int, default=50,
                     help="Number of testing data points")
 parser.add_argument('--seq_len', type=int, default=15, 
                     help="Number of training frames for Moving Mnist train reconstruction")
-parser.add_argument('--rotrand', type=eval, default=True,
-                    help="if True multiple initial rotation angles")
+parser.add_argument('--clean_lv', type=str, default='clean', choices=LV_TYPE,
+                    help="if clean then selected only complete LV sequences")
 parser.add_argument('--style', type=list, default=[0,1,2,3,4,5,6,7,8,9], 
                     help="List of styles (digits) to use")
 parser.add_argument('--shuffle', type=eval, default=True,
