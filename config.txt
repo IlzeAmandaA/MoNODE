@@ -35,7 +35,7 @@ python main.py --task sin  --Ntrain 100 --Nvalid 25 --Ntest 25 --T_in 3 --T_inv 
 python main.py --task sin  --Ntrain 100 --Nvalid 25 --Ntest 25 --T_in 7 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
 
 ############## LV ##############
-lv data
+lv data (clean atm)
 a: --Ntrain 500 --T_inv 40 
 python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
 python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
