@@ -5,9 +5,9 @@ final settings: Ntrain 80 batch_size 10 T_inv 10
 19-01-2023-13:50 : python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --T_in 10 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 --contr_loss False
 
 try: solver == 'dopri5' 
-python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500
-python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500 --contr_loss False
-python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 10 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 --contr_loss False
+    python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500
+    python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500 --contr_loss False
+    python main.py --task sin  --Ntrain 80 --Nvalid 25 --Ntest 25 --batch_size 10 --solver dopri5 --T_in 10 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 --contr_loss False
 
 a: nope too Ntrain
 NeuralODE+inv+contrasitve: python main.py --task sin  --Ntrain 50 --Nvalid 25 --Ntest 25 --T_in 3 --T_inv 10  --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000
@@ -42,8 +42,9 @@ python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 -
 python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
     a:1 --Ntrain 500 --T_inv 20 
-
-
+    python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+    python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --Ntrain 500 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 20 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
 b: --Ntrain 100  --T_inv 40 (100 is too few)
 python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
@@ -51,6 +52,9 @@ python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T
 python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
     b:1 --Ntrain 250  --T_inv 40 
+    python main.py --task lv --Ntrain 250 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+    python main.py --task lv --Ntrain 250 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --Ntrain 250 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
 
 c:  --Ntrain 100  --T_inv 20
@@ -59,20 +63,9 @@ python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T
 python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T_in 20 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
     c:1. --Ntrain 250  --T_inv 20
+    put on depending on above results
 
-
-
-moving mnist (seq_len specifies that training data uses 15 time frames)
-a: check content variable ida 
-b: dimensionality of content variable 
-python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2000
-python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2500
-python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2500
-
-
-python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --Nepoch 2500
-
-rot mnist (WE ARE HAPPY)
+############## ROT MNIST ##################
 python main.py --task rot_mnist --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 #result 16-01-2023-15:58
 python main.py --task rot_mnist --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 --contr_loss False
 python main.py --task rot_mnist --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
@@ -80,9 +73,19 @@ python main.py --task rot_mnist --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size
 b: increase T_in 5 for Neural ODE
 python main.py --task rot_mnist --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 5 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
 
-
-
 change content : few-shot learning 
+
+
+############# MOVING MNIST ######################
+moving mnist (seq_len specifies that training data uses 15 time frames)
+a: check content variable ida 
+b: dimensionality of content variable 
+python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2000
+python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2500
+python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2500
+
+python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --Nepoch 2500
+
 
 
 ############# SPIRAL ########################
