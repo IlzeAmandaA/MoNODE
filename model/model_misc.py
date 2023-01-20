@@ -204,7 +204,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
 
     global_itr = 0
     best_valid_loss = None
-    test_elbo, test_mse = 0.0, 0.0
+    test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
     for ep in range(args.Nepoch):
         L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
@@ -284,18 +284,18 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
                     test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, contr_loss=args.contr_loss, T_valid=valid_batch.shape[1]) 
                     test_elbos.append(test_elbo.item())
                     test_mses.append(test_mse.item())
-                test_elbo, test_mse = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses))
+                test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))
                 # update test loggers
-                te_mse_meter.update(test_mse.item(), ep)
-                test_elbo_meter.update(test_elbo.item(),ep)
+                te_mse_meter.update(test_mse, ep, test_std) 
+                test_elbo_meter.update(test_elbo,ep)
                 logger.info('********** Current Best Model based on validation error ***********')
-                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f} '.\
-                format(ep, args.Nepoch, test_elbo, test_mse)) 
+                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
+                format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
 
 
             if ep == (args.Nepoch-1):
-                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f} '.\
-                format(ep, args.Nepoch, test_elbo, test_mse)) 
+                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
+                format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]

@@ -28,9 +28,10 @@ class CachedRunningAverageMeter(object):
         self.val = None
         self.avg = 0
         self.vals = []
+        self.stds = []
         self.iters = []
 
-    def update(self, val, iter):
+    def update(self, val, iter, std=None):
         if self.val is None:
             self.avg = val
         else:
@@ -38,6 +39,8 @@ class CachedRunningAverageMeter(object):
         self.val = val
         self.vals.append(val)
         self.iters.append(iter)
+        if std:
+            self.stds.append(std)
 
 class CachedAverageMeter(object):
     """Computes and stores the average and current value over optimization iterations"""
