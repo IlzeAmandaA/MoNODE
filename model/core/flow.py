@@ -105,7 +105,9 @@ class Flow(nn.Module):
             rtol=self.rtol,
             method=self.solver
         )
-        return zt.permute(1,0,2,3) # N,T,nobj,q
+
+        return zt.permute(1,0,2,3) if zt.ndim == 4 else zt.permute(1,0,2) # N,T,nobj,q or N,T,q
+        #return zt.permute(1,0,2,3) # N,T,nobj,q or N,T,q
 
 
     def num_evals(self):

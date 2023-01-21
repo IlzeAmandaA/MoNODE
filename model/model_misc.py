@@ -144,7 +144,7 @@ def contrastive_loss(C):
     return -pos
 
 
-def compute_loss(model, data, L, contr_loss=False, T_valid=None):
+def compute_loss(model, data, L, contr_loss=False, T_valid=None, sc_beta=1.0):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -164,7 +164,7 @@ def compute_loss(model, data, L, contr_loss=False, T_valid=None):
         
     lhood = lhood * model.num_observations
     kl_z0 = kl_z0 * model.num_observations
-    loss  = - lhood + kl_z0 + kl_gp + contr_learn_loss
+    loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
     mse   = torch.mean((Xrec-data)**2)
     return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
 
@@ -261,7 +261,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
             valid_elbos,valid_mses = [],[]
             for itr_test,valid_batch in enumerate(validset):
                 valid_batch = valid_batch.to(invodevae.device)
-                valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, contr_loss=args.contr_loss) #, T_valid=valid_batch.shape[1]//2)
+                valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
                 valid_elbos.append(valid_elbo.item())
                 valid_mses.append(valid_mse.item())
             valid_elbo, valid_mse = np.mean(np.array(valid_elbos)),np.mean(np.array(valid_mses))
@@ -281,7 +281,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
                 test_elbos,test_mses = [],[]
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
-                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, contr_loss=args.contr_loss, T_valid=valid_batch.shape[1]) 
+                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_beta=args.beta_contr) 
                     test_elbos.append(test_elbo.item())
                     test_mses.append(test_mse.item())
                 test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))

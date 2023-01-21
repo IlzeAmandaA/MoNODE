@@ -4,15 +4,6 @@ import argparse
 import torch
 import torch.nn as nn
 
-# GP
-# 2184379 - not inv
-# 2184375 - inv
-# 2184374/2185002 - inv + contr
-# NN
-# 2184377 - not inv
-# 2184376 - inv
-# 2184373/2184531 - inv + contr
-
 from model.model_misc import build_model, train_model #, train_mov_mnist
 from model.misc import io_utils
 from model.misc.torch_utils import seed_everything
@@ -25,11 +16,7 @@ KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin', 'spiral', 'lv']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 LV_TYPE = ['clean', 'all']
-parser = argparse.ArgumentParser('Bayesian Invariant Latent ODE')
-
-# TASK = 'rot_mnist'
-# NTRAIN_DEFAULTS     = {'rot_mnist':400, 'mov_mnist':400, 'sin':250}
-# BATCH_SIZE_DEFAULTS = {'rot_mnist':25,  'mov_mnist':25,  'sin':50}
+parser = argparse.ArgumentParser('Invariant Latent ODE')
 
 #data
 parser.add_argument('--task', type=str, default='mov_mnist', choices=TASKS,
@@ -135,6 +122,8 @@ parser.add_argument('--forecast_tr',type=int, default=2, #for moving mnist 2
                     help="Number of forecast steps for plotting train")
 parser.add_argument('--forecast_te',type=int, default=2, #for moving mnist 2 
                     help="Number of forecast steps for plotting test")
+parser.add_argument('--beta_contr',type=int, default=1, 
+                    help="Scaling factor for contrastive loss")
 
 #log 
 parser.add_argument('--save', type=str, default='results/',

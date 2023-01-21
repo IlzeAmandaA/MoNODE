@@ -105,10 +105,15 @@ class INVODEVAE(nn.Module):
 
         #sample trajectories
         if self.aug:
-            cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
-            ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
-            ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
-            Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
+            if self.flow.odefunc.diffeq.type == 'SVGP':
+                z0 = z0.reshape(L,N,q) # L,N,q
+                ztL  = self.sample_augmented_trajectories(z0, c, T, L) # L,N,T,q
+                Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
+            else:
+                cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
+                ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
+                ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
+                Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
         else:
             #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,T,N,nobj,q
