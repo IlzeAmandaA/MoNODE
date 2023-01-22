@@ -154,9 +154,13 @@ def compute_loss(model, data, L, contr_loss=False, T_valid=None, sc_beta=1.0):
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
-    in_data = data if T_valid==None else data[:,:T_valid] #for test mse only compute on the same lenght as valid (test sequences might be longer)
+    if T_valid != None:
+        in_data = data[:,:T_valid]
+        T= T_valid
+    else:
+        in_data = data 
     Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
-    lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
+    lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
     if contr_loss:
         contr_learn_loss = contrastive_loss(C)
     else:
@@ -165,7 +169,7 @@ def compute_loss(model, data, L, contr_loss=False, T_valid=None, sc_beta=1.0):
     lhood = lhood * model.num_observations
     kl_z0 = kl_z0 * model.num_observations
     loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
-    mse   = torch.mean((Xrec-data)**2)
+    mse   = torch.mean((Xrec-in_data)**2)
     return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
 
 
@@ -296,6 +300,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
             if ep == (args.Nepoch-1):
                 logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
                 format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
+
+                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_final.pth'))
+
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
