@@ -59,6 +59,11 @@ def __load_data(args, device, dtype, dataset=None):
 		data_path_tr = __adjst_name(data_path_tr, '.pkl', args.clean_lv)
 		data_path_vl = __adjst_name(data_path_vl, '.pkl', args.clean_lv)
 		data_path_te = __adjst_name(data_path_te, '.pkl', args.clean_lv)
+	elif dataset == 'mov_mnist':
+		data_path_tr = __adjst_name(data_path_tr, '.pkl', str(args.seq_len_data))
+		data_path_vl = __adjst_name(data_path_vl, '.pkl', str(args.seq_len_data))
+		data_path_te = __adjst_name(data_path_te, '.pkl', str(args.seq_len_data))
+	
 	try:
 		Xtr = torch.load(data_path_tr)
 		Xvl = torch.load(data_path_vl)
@@ -75,13 +80,13 @@ def __load_data(args, device, dtype, dataset=None):
 		elif dataset == 'mov_mnist':
 			data_loader_fnc = gen_mmnist_data
 
-		data_loader_fnc(data_path_tr, args.Ntrain, clean=args.clean_lv, style = args.style, plot=True)
-		data_loader_fnc(data_path_vl, args.Nvalid, clean = args.clean_lv, style = args.style)
+		data_loader_fnc(data_path_tr, args.Ntrain, clean=args.clean_lv, style = args.style, seq_len=args.seq_len_data, plot=True)
+		data_loader_fnc(data_path_vl, args.Nvalid, clean = args.clean_lv, seq_len=args.seq_len_data, style = args.style)
 
 		if dataset == 'sin':
-			data_loader_fnc(data_path_te, args.Ntest, T=150, clean=args.clean_lv, style =  args.style)
+			data_loader_fnc(data_path_te, args.Ntest, T=150, clean=args.clean_lv, seq_len=args.seq_len_data, style =  args.style)
 		else:
-			data_loader_fnc(data_path_te, args.Ntest, clean=args.clean_lv, style =  args.style)
+			data_loader_fnc(data_path_te, args.Ntest, clean=args.clean_lv, seq_len=args.seq_len_data, style =  args.style)
 
 		Xtr = torch.load(data_path_tr)
 		Xvl = torch.load(data_path_vl)
@@ -131,7 +136,7 @@ def __build_dataset(num_workers, batch_size, Xtr, Xvl, Xte, shuffle=True):
 	return trainset, validset, testset
 
 
-def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1, clean=None, style=None, plot=False): 
+def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1, clean=None, style=None, seq_len=None, plot=False): 
 	phis = torch.rand(N,1) #
 	fs = torch.rand(N,1) * .5 + .5 # N,1, [0.5, 1.0]
 	A  = torch.rand(N,1) * 2 + 1   # N,1, [1.0, 3.0]
@@ -145,7 +150,7 @@ def gen_sin_data(data_path, N, T=50, dt=0.1, sig=.1, clean=None, style=None, plo
 	torch.save(X, data_path)
 
 
-def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01, clean=None, style=None, plot=False): 
+def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01, clean=None, style=None, seq_len= None,plot=False): 
 	'''
 	Note: keep T fixed
 	'''
@@ -170,7 +175,7 @@ def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01, clean=None, style=None, 
 	if plot: plot_2d_origin(Xt,fname='data/spiral/example_spiral.png',N=10)
 	torch.save(Xt, data_path)
 
-def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.01, beta=0.5, delta=0.2, clean='clean', style=None,plot=False):
+def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.01, beta=0.5, delta=0.2, clean='clean', seq_len=None, style=None,plot=False):
 
 	if clean == 'clean':
 		N_add = 200 #add aditional data samples as some might be discarded
@@ -240,10 +245,11 @@ def gen_mmnist_data(data_path, N=10, seq_len=30, ndigits=2, clean=None, style=No
 	
 	#normalize to [0,1] range
 	Xt = mmnist._collate_fn(videos) #N,T,1,dim,dim
-	if plot: plot_mnist(Xt[:15], Xt[15:], fname='data/mov_mnist/example_mmnist.png')
+	filename = 'data/mov_mnist/example_mmnist_' + str(seq_len)
+	if plot: plot_mnist(Xt[:15], Xt[15:], fname=filename)
 	torch.save(Xt, data_path)
 
-def gen_rmnist_data(data_path, N=10, n_angles=16, digit=3, clean=None, style=None, plot=False):
+def gen_rmnist_data(data_path, N=10, n_angles=16, digit=3, clean=None, style=None, seq_len=None, plot=False):
 	#load MNIST digits
 	data = RotatingMNIST('data/', data_n = N, n_angles = n_angles, digit=digit)
 	data._gen_angles()

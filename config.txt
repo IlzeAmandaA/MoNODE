@@ -62,16 +62,20 @@ python main.py --task lv --Ntrain 100 --Nvalid 30 --Ntest 30 --batch_size 10 --T
 
     b) 2. Ntrain 400  batch_size 20 T_inv 40
      (if this looks better than Ntrain 500) then put on b) 3.
-    python main.py --task lv --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
-    python main.py --task lv --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
-    python main.py --task lv --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
     b) 2.i Ntrain 400  batch_size 20 T_inv 40 beta for contr_loss (b = 10)
-    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
-    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
-    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 80 --Ntest 80 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --beta_contr 10 --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
-    b) 3. Ntrain 400 batch_size 15 T_inv 30 (if b)2. good) 
+    b) 3. Ntrain 400 batch_size 15 T_inv 30 (nah test already) 
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 30  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 8 --T_inv 30  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
+    python main.py --task lv --Ntrain 400 --Nvalid 100 --Ntest 100 --batch_size 20 --T_in 30 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
+
 
 
 
@@ -96,7 +100,7 @@ python main.py --task rot_mnist --solver dopri5 --Ntrain 500 --Nvalid 60 --Ntest
 python main.py --task rot_mnist --solver dopri5 --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 --contr_loss False
 python main.py --task rot_mnist --solver dopri5 --Ntrain 500 --Nvalid 60 --Ntest 60 --batch_size 20 --cnn_arch cnn  --T_in 5 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
 
-change content : few-shot learning 
+  change content : few-shot learning 
 
 
 ############# MOVING MNIST ######################
@@ -108,7 +112,7 @@ python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_s
 python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 10 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
 
-b: dimensionality of content variable 32 + beta_conr 10 
+b: 1. dimensionality of content variable 32 + beta_conr 10 
 python main.py --task mov_mnist --beta_contr 10 --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2000
 
 

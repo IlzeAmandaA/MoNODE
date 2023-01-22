@@ -33,6 +33,8 @@ parser.add_argument('--Ntest', type=int, default=50,
                     help="Number of testing data points")
 parser.add_argument('--seq_len', type=int, default=15, 
                     help="Number of training frames for Moving Mnist train reconstruction")
+parser.add_argument('--seq_len_data', type=int, default=30, 
+                    help="Number of training frames for Moving Mnist train reconstruction")
 parser.add_argument('--clean_lv', type=str, default='clean', choices=LV_TYPE,
                     help="if clean then selected only complete LV sequences")
 parser.add_argument('--style', type=list, default=[0,1,2,3,4,5,6,7,8,9], 
