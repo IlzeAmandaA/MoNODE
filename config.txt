@@ -105,7 +105,13 @@ python main.py --task rot_mnist --solver dopri5 --Ntrain 500 --Nvalid 60 --Ntest
 
 ############# MOVING MNIST ######################
 moving mnist (seq_len specifies that training data uses 15 time frames)
-a: check content variable ida 
+a: nf=8
+python main.py --task mov_mnist --Ntrain 3000 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000
+
+nf = 64
+python main.py --task mov_mnist --Ntrain 10000 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000
+
+
 b: dimensionality of content variable 64
 python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2000
 python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2000 --contr_loss False

@@ -175,13 +175,12 @@ def gen_spiral_data(data_path, N=1000, T=1000, dt=0.01, clean=None, style=None, 
 	if plot: plot_2d_origin(Xt,fname='data/spiral/example_spiral.png',N=10)
 	torch.save(Xt, data_path)
 
-def gen_lv_data(data_path, N=5, T=100, dt=.1, DIFF=.01, beta=0.5, delta=0.2, clean='clean', seq_len=None, style=None,plot=False):
+def gen_lv_data(data_path, N=5, T=200, dt=.1, DIFF=.01, beta=0.5, delta=0.2, clean='clean', seq_len=None, style=None,plot=False):
 
 	if clean == 'clean':
 		N_add = 200 #add aditional data samples as some might be discarded
 		N_old = N
 		N += N_add
-		T=200 #increase time step size so full sequences 
 
 	alpha = torch.rand([N,1]) / .3 + .1
 	gamma = torch.rand([N,1]) / .3 + .1
