@@ -122,11 +122,19 @@ b: 1. dimensionality of content variable 32 + beta_conr 10
 python main.py --task mov_mnist --beta_contr 10 --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2000
 
 
+b:2) content var 12 n_filt 64 Ntrain 10k
+python main.py --task mov_mnist --Ntrain 10000 --Nvalid 100 --Ntest 100 --batch_size 50 --seq_len 15 --seq_len_data 30 --cnn_arch dcgan --n_filt 64 --T_in 5 --T_inv 15 --ode_latent_dim 8 --inv_latent_dim 12 --Nepoch 2000
 
-python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2500
-python main.py --task mov_mnist --Ntrain 1500 --Nvalid 50 --Ntest 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 64 --Nepoch 2500
+b:2)1) content var 8 n_filt 64 Ntrain 10k
+python main.py --task mov_mnist --Ntrain 10000 --Nvalid 100 --Ntest 100 --batch_size 50 --seq_len 15 --seq_len_data 30 --cnn_arch dcgan --n_filt 64 --T_in 5 --T_inv 15 --ode_latent_dim 8 --inv_latent_dim 8 --Nepoch 2000
 
-python main.py --task mov_mnist --Ntrain 500 --Nvalid 40 --subsample 50 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --Nepoch 2500
+
+b:3)  content var 12 n_filt 16 Ntrain 10k
+python main.py --task mov_mnist --Ntrain 10000 --Nvalid 100 --Ntest 100 --batch_size 50 --seq_len 15 --seq_len_data 30 --cnn_arch dcgan --n_filt 16 --T_in 5 --T_inv 15 --ode_latent_dim 8 --inv_latent_dim 12 --Nepoch 2000
+
+b:4) content var 12 n_filt 8 Ntrain 3k
+python main.py --task mov_mnist --Ntrain 3000 --Nvalid 100 --Ntest 100 --batch_size 50 --seq_len 15 --seq_len_data 30 --cnn_arch dcgan --n_filt 8 --T_in 5 --T_inv 15 --ode_latent_dim 8 --inv_latent_dim 12 --Nepoch 2000
+
 
 
 
