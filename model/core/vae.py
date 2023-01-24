@@ -96,7 +96,7 @@ class VAE(nn.Module):
         if task=='rot_mnist' or task=='mov_mnist':
             lhood_distribution = 'bernoulli'
             if cnn_arch == 'dcgan':
-                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=64, enc_out_dim=ode_latent_dim//order, T_in=T_in)
+                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=n_filt, enc_out_dim=ode_latent_dim//order, T_in=T_in)
                 self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
             elif cnn_arch == 'cnn':
                 self.encoder = PositionEncoderCNN(task=task, out_distr='normal', enc_out_dim=ode_latent_dim//order, n_filt=n_filt, T_in=T_in).to(device)

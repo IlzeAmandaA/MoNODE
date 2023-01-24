@@ -118,7 +118,7 @@ python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_s
 python main.py --task mov_mnist --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 10 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
 
 
-b: 1. dimensionality of content variable 32 + beta_conr 10 
+c:. dimensionality of content variable 32 + beta_conr 10 
 python main.py --task mov_mnist --beta_contr 10 --Ntrain 1500 --Nvalid 100 --Ntest 100 --batch_size 25 --seq_len 15 --cnn_arch dcgan --T_in 5 --T_inv 15 --ode_latent_dim 12 --inv_latent_dim 32 --Nepoch 2000
 
 
