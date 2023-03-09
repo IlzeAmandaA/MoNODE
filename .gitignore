@@ -178,3 +178,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.sh
+*.ipynb
+config_archive.txt
+overleaf
