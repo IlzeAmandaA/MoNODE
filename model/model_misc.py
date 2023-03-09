@@ -1,99 +1,10 @@
-import os, time, numpy as np
+import os, numpy as np
 import torch
 from torch.distributions import kl_divergence as kl
-from torchdiffeq import odeint
-import sys
-
-from model.core.svgp import SVGP_Layer
-from model.core.mlp import MLP
-from model.core.flow import Flow
-from model.core.vae import VAE
-from model.core.inv_enc import INV_ENC
-from model.core.invodevae import INVODEVAE
 
 from model.misc import log_utils 
 from model.misc.plot_utils import plot_results
 
-
-def build_model(args, device, dtype):
-    """
-    Builds a model object of odevaegp.ODEVAEGP based on training sequence
-
-    @param args: model setup arguments
-    @return: an object of ODEVAEGP class
-    """
-
-    #differential function
-    aug = (args.task=='sin' or args.task=='spiral' or args.task=='lv') and args.inv_latent_dim>0
-    Nobj = 1 #TODO maybe also make parser variable that you can change if needed
-    if aug: # augmented dynamics
-        D_in  = args.ode_latent_dim + args.inv_latent_dim
-        D_out = int(args.ode_latent_dim / args.order)
-    else:
-        if args.task == 'mov_mnist': #multiple objects with shared dynamics
-            Nobj = 2
-            D_in = args.ode_latent_dim// Nobj
-            D_out = args.ode_latent_dim// Nobj
-        else:
-            D_in  = args.ode_latent_dim
-            D_out = int(D_in / args.order)
-
-    if args.de == 'SVGP':
-        de = SVGP_Layer(D_in=D_in, 
-                        D_out=D_out, #2q, q
-                        M=args.num_inducing,
-                        S=args.num_features,
-                        dimwise=args.dimwise,
-                        q_diag=args.q_diag,
-                        device=device,
-                        dtype=dtype,
-                        kernel = args.kernel)
-
-        de.initialize_and_fix_kernel_parameters(lengthscale_value=args.lengthscale, variance_value=args.variance, fix=False) #1.25, 0.5, 0.65 0.25
-    
-    elif args.de == 'MLP':
-        de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') 
-
-    if args.inv_latent_dim>0:
-        if args.inv_fnc == 'SVGP':
-            last_layer_gp = SVGP_Layer(D_in=args.inv_latent_dim, 
-                        D_out=args.inv_latent_dim, #2q, q
-                        M=args.num_inducing_inv,
-                        S=args.num_features,
-                        dimwise=args.dimwise,
-                        q_diag=args.q_diag,
-                        device=device,
-                        dtype=dtype,
-                        kernel = args.kernel)
-        else:
-            last_layer_gp = None
-        
-        inv_enc = INV_ENC(task=args.task, last_layer_gp=last_layer_gp, inv_latent_dim=args.inv_latent_dim,
-            n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, device=device).to(dtype)
-
-    else:
-        inv_enc = None
-
-    # latent ode 
-    flow = Flow(diffeq=de, order=args.order, solver=args.solver, use_adjoint=args.use_adjoint)
-
-    # encoder & decoder
-    vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
-            dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
-            inv_latent_dim=args.inv_latent_dim, T_in=args.T_in, order=args.order, cnn_arch=args.cnn_arch, device=device).to(dtype)
-
-    #full model
-    inodevae = INVODEVAE(flow = flow,
-                        vae = vae,
-                        inv_enc = inv_enc,
-                        num_observations = args.Ntrain,
-                        order = args.order,
-                        steps = args.frames,
-                        dt  = args.dt,
-                        aug = aug,
-                        nobj=Nobj)
-
-    return inodevae
 
 def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
     ''' Input:
@@ -144,7 +55,7 @@ def contrastive_loss(C):
     return -pos
 
 
-def compute_loss(model, data, L, contr_loss=False, T_valid=None, sc_beta=1.0):
+def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=None, sc_beta=1.0):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -166,8 +77,8 @@ def compute_loss(model, data, L, contr_loss=False, T_valid=None, sc_beta=1.0):
     else:
         contr_learn_loss = torch.zeros_like(lhood)
         
-    lhood = lhood * model.num_observations
-    kl_z0 = kl_z0 * model.num_observations
+    lhood = lhood * num_observations
+    kl_z0 = kl_z0 * num_observations
     loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
     mse   = torch.mean((Xrec-in_data)**2)
     return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
@@ -182,7 +93,7 @@ def freeze_pars(par_list):
             raise ValueError('This is not a parameter!?')
 
 
-def train_model(args, invodevae, plotter, trainset, validset, testset, logger, freeze_dyn=False):
+def train_model(args, invodevae, plotter, trainset, validset, testset, logger, params, freeze_dyn=False):
     inducing_kl_meter = log_utils.CachedRunningAverageMeter(0.97)
     elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
     nll_meter   = log_utils.CachedRunningAverageMeter(0.97)
@@ -197,7 +108,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
     if freeze_dyn:
         freeze_pars(invodevae.flow.parameters())
 
-    ############## build the optimizer
+    ############## build the optimizer ############
     gp_pars  = [par for name,par in invodevae.named_parameters() if 'SVGP' in name]
     rem_pars = [par for name,par in invodevae.named_parameters() if 'SVGP' not in name]
     assert len(gp_pars)+len(rem_pars) == len(list(invodevae.parameters()))
@@ -206,6 +117,8 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
                     {'params': gp_pars, 'lr': args.lr*10}
                     ],lr=args.lr)
 
+
+    ########## Training loop ###########
     global_itr = 0
     best_valid_loss = None
     test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
@@ -245,7 +158,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
                     tr_minibatch = tr_minibatch.repeat([N_,1,1])
                     tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
-                compute_loss(invodevae, tr_minibatch, L, contr_loss=args.contr_loss)
+                compute_loss(invodevae, tr_minibatch, L, num_observations = params['train']['N'], contr_loss=args.contr_loss)
 
             optimizer.zero_grad()
             loss.backward() 
@@ -265,7 +178,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
             valid_elbos,valid_mses = [],[]
             for itr_test,valid_batch in enumerate(validset):
                 valid_batch = valid_batch.to(invodevae.device)
-                valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
+                valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
                 valid_elbos.append(valid_elbo.item())
                 valid_mses.append(valid_mse.item())
             valid_elbo, valid_mse = np.mean(np.array(valid_elbos)),np.mean(np.array(valid_mses))
@@ -285,7 +198,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
                 test_elbos,test_mses = [],[]
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
-                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_beta=args.beta_contr) 
+                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, num_observations=params['test']['N'], contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_beta=args.beta_contr) 
                     test_elbos.append(test_elbo.item())
                     test_mses.append(test_mse.item())
                 test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))
@@ -306,10 +219,11 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, f
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
-                Xrec_te, ztL_te = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_te*valid_batch.shape[1])[:2]
+                Xrec_vl, ztL_vl = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])[:2]
+                Xrec_te, ztL_te = invodevae(test_batch,   L=args.plotL, T_custom=test_batch.shape[1])[:2]
 
-                plot_results(plotter, args, ztL_tr, Xrec_tr, tr_minibatch, ztL_te, \
-                    Xrec_te, valid_batch, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, \
-                        tr_mse_meter, te_mse_meter, test_elbo_meter)
+                plot_results(plotter, args, \
+                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, Xrec_te, ztL_te, test_batch, \
+                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, te_mse_meter, test_elbo_meter)
             
 

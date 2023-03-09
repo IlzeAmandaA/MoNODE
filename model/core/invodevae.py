@@ -3,11 +3,10 @@ import torch.nn as nn
 
  
 class INVODEVAE(nn.Module):
-    def __init__(self, flow, vae, num_observations, order, steps, dt, inv_enc=None, aug=False, nobj=1) -> None:
+    def __init__(self, flow, vae, order, steps, dt, inv_enc=None, aug=False, nobj=1) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
-        self.num_observations = num_observations
         self.vae = vae
         self.inv_enc = inv_enc
         self.dt = dt
@@ -114,6 +113,8 @@ class INVODEVAE(nn.Module):
                 ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
                 ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
                 Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
+                if X.ndim==5:
+                    Xrec = Xrec.reshape([L,N,T,*X.shape[2:]])
         else:
             #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,T,N,nobj,q

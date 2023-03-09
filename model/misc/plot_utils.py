@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import torch
 import os
@@ -9,30 +10,30 @@ from model.misc import io_utils
 palette = list(mcolors.TABLEAU_COLORS.keys())
 
 
-def plot_results(plotter, args, ztl_tr, tr_rec, trainset, ztl_te, te_rec, \
-    testset, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, \
-        tr_mse_meter, test_mse_meter, test_elbo_meter):
+def plot_results(plotter, args, \
+                 tr_rec,ztl_tr, trainset, vl_rec, ztl_vl, validset, te_rec, ztl_te, testset, \
+                 elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter):
 
     plotter.plot_fit(trainset, tr_rec, 'tr')
+    plotter.plot_fit(validset,  vl_rec, 'valid')
     plotter.plot_fit(testset,  te_rec, 'test')
 
     plotter.plot_latent(ztl_tr, 'tr')
+    plotter.plot_latent(ztl_vl, 'valid')
     plotter.plot_latent(ztl_te, 'test')
 
-    plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter) # logpL_meter, logztL_meter, args)
+    plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter)
 
 
 class Plotter:
     def __init__(self, root, task_name):
         self.task_name    = task_name
         self.path_prefix  = root
-        if self.task_name=='rot_mnist':
+        if self.task_name in ['rot_mnist', 'mov_mnist', 'bb']:
             self.plot_fit_fnc    = plot_mnist
-        if self.task_name=='mov_mnist':
-            self.plot_fit_fnc = plot_mnist
         if self.task_name=='sin':
             self.plot_fit_fnc = plot_sin
-        if self.task_name == 'lv' or self.task_name =='spiral':
+        if self.task_name == 'lv':
             self.plot_fit_fnc = plot_2d
         self.plot_latent_fnc = plot_latent_traj
 
@@ -150,6 +151,28 @@ def plot_mnist(X, Xrec, show=False, fname='predictions.png', N=None):
     else:
         plt.savefig(fname)
         plt.close()
+
+def plot_bb(X, fname=None):
+    plt.figure(1,(8,8))
+    for n in range(X.shape[2]):
+        plt.plot(X[0,:,n,0], X[0,:,n,1], 'o')
+    plt.savefig(fname,dpi=200)
+    plt.close()
+
+def plot_bb_V(V, N=3,fname=None):
+    print(V.shape)
+    '''
+    V: N,T,dim,dim 
+    '''
+    c = V.shape[-1]
+    T = V.shape[1]
+    plt.figure(2,(T,2*N))
+    for i in range(N):
+        for t in range(T):
+            plt.subplot(2*N,T,i*T+t+1)
+            plt.imshow(np.reshape(V[i,t],[c,c]), cmap='gray')
+            plt.xticks([]); plt.yticks([])
+    plt.savefig(fname)
 
 
 def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)

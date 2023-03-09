@@ -3,11 +3,13 @@ import torch.nn as nn
 from model.core.vae import EncoderCNN, EncoderRNN
 
 class INV_ENC(nn.Module):
-    def __init__(self, task, last_layer_gp=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
+    def __init__(self, task, last_layer_gp=None, vae_enc=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
         super(INV_ENC, self).__init__()
         self.last_layer_gp = last_layer_gp
         if task=='rot_mnist' or task=='mov_mnist':
             self.inv_encoder = InvariantEncoderCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv).to(device)
+        if task=='bb':
+            self.inv_encoder = InvariantEncoderRCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv, vae_enc=vae_enc).to(device)
         elif task=='sin' or task=='spiral' or task=='lv':
             data_dim = 1 if task=='sin' else 2 
             self.inv_encoder = InvariantEncoderRNN(data_dim, T_inv=T_inv, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
@@ -36,6 +38,25 @@ class INV_ENC(nn.Module):
         else:
             return c.repeat([L,1,1,1]) # L,N,T,q
 
+class InvariantEncoderRCNN(nn.Module):
+    def __init__(self, task, out_distr='dirac', enc_out_dim=16, n_filt=8, n_in_channels=1, T_inv=15, vae_enc=None):
+        super().__init__()
+        self.enc_out_dim = enc_out_dim
+        if vae_enc is None:
+            self.cnn_enc = EncoderCNN(task, out_distr=out_distr,  enc_out_dim=enc_out_dim, n_filt=8, n_in_channels=1)
+        else:
+            self.cnn_enc = nn.Sequential(vae_enc.cnn, nn.Linear(vae_enc.in_features, enc_out_dim))
+        self.rnn_enc = EncoderRNN(enc_out_dim, rnn_hidden=10, enc_out_dim=enc_out_dim, out_distr=out_distr) 
+        self.T_inv = T_inv
+    def forward(self,X,ns=5):
+        [N,T,nc,d,d] = X.shape
+        z = self.cnn_enc(X.reshape(N*T,nc,d,d)).reshape(N,T,-1) # N,T,n
+        T_inv = min(self.T_inv,T)
+        z   = z.repeat([ns,1,1])
+        t0s = torch.randint(0,T-T_inv+1,[ns*N]) 
+        z   = torch.stack([z[n,t0:t0+T_inv] for n,t0 in enumerate(t0s)]) # ns*N,T_inv,d
+        X_out = self.rnn_enc(z) # ns*N,enc_out_dim
+        return X_out.reshape(ns,N,self.enc_out_dim).permute(1,0,2) # N,ns,enc_out_dim
 
 class InvariantEncoderCNN(EncoderCNN):
     def __init__(self, task, out_distr='dirac', enc_out_dim=16, n_filt=8, n_in_channels=1, T_inv=15):

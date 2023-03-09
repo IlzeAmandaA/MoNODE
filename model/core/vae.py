@@ -91,29 +91,29 @@ class VAE(nn.Module):
     def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, T_in=10, device='cpu', order=1, cnn_arch='cnn'):
         super(VAE, self).__init__()
 
-        # task, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1
         ### build encoder
-        if task=='rot_mnist' or task=='mov_mnist':
-            lhood_distribution = 'bernoulli'
-            if cnn_arch == 'dcgan':
-                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=n_filt, enc_out_dim=ode_latent_dim//order, T_in=T_in)
-                self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
-            elif cnn_arch == 'cnn':
+        lhood_distribution = 'bernoulli'
+        if task in ['rot_mnist', 'mov_mnist']:
+            if task == 'rot_mnist':
                 self.encoder = PositionEncoderCNN(task=task, out_distr='normal', enc_out_dim=ode_latent_dim//order, n_filt=n_filt, T_in=T_in).to(device)
                 self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
-            else:
-                raise SystemExit('Invalid encoder/decoder selected')
+            elif task == 'mov_mnist':
+                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=n_filt, enc_out_dim=ode_latent_dim//order, T_in=T_in)
+                self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
             if order==2:
-                self.encoder_v   = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
+                self.encoder_v = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
+        
+        elif task=='bb':
+            self.encoder = EncoderRCNN(task=task, T_in=T_in, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, n_in_channels=1).to(device)
+            self.decoder = Decoder(task, ode_latent_dim//order, n_filt=n_filt, distribution=lhood_distribution).to(device)
 
-        elif task=='sin' or task=='spiral' or task =='lv':
+        elif task in ['sin', 'lv']:
             lhood_distribution = 'normal'
             data_dim = 1 if task=='sin' else 2
             self.encoder = EncoderRNN(data_dim, Tin=T_in, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
             self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
             if order==2:
                 self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-
 
         self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
         
@@ -182,6 +182,29 @@ class AbstractEncoder(nn.Module):
     @property
     def device(self):
         return self.sp.device
+    
+class EncoderRCNN(AbstractEncoder):
+    def __init__(self, task, T_in, out_distr='normal', enc_out_dim=16, n_filt=8, n_in_channels=1, rnn_output_size=50, H=50):
+        super(EncoderRCNN, self).__init__()
+        self.T_in = T_in
+        self.enc_out_dim = enc_out_dim
+        self.out_distr  = out_distr
+        self.cnn, self.in_features = build_rot_mnist_cnn_enc(n_in_channels, n_filt)
+        self.fc1 = nn.Linear(self.in_features, enc_out_dim)
+        self.gru = GRUEncoder(enc_out_dim*2, enc_out_dim, rnn_output_size=rnn_output_size, H=H)
+        
+    def forward(self, X):
+        ''' X - [N,T,nc,w,w] '''
+        X = X[:,:self.T_in]
+        [N,T,nc,w,w] = X.shape
+        h = self.cnn(X.reshape(N*T,nc,w,w)).reshape(N,T,-1)
+        z = self.fc1(h)
+        outputs = self.gru(z)
+        if self.out_distr=='normal':
+            z0_mu, z0_log_sig = outputs[:,:self.enc_out_dim,], outputs[:,self.enc_out_dim:]
+            z0_log_sig = self.sp(z0_log_sig)
+            return z0_mu, z0_log_sig
+        return outputs
 
 
 class EncoderCNN(AbstractEncoder):
@@ -254,6 +277,8 @@ class Decoder(nn.Module):
             self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
+        elif task=='bb':
+            self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='sin' or task=='spiral' or task=='lv':
             self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act=act)
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
@@ -276,6 +301,8 @@ class Decoder(nn.Module):
         z - preds [L,N,T,nc,d,d] or [L,N,T,d]
         '''
         XL = X.repeat([L]+[1]*X.ndim) # L,N,T,nc,d,d or L,N,T,d
+        assert XL.numel()==Xhat.numel()
+        Xhat = Xhat.reshape(XL.shape)
         if self.distribution == 'bernoulli':
             try:
                 log_p = torch.log(Xhat)*XL + torch.log(1-Xhat)*(1-XL) # L,N,T,nc,d,d

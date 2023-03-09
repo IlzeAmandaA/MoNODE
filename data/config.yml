@@ -1,0 +1,69 @@
+sin:
+  train:
+    N: 80
+    T: 50
+  valid:
+    N: 25 
+    T: 50
+  test:
+    N: 25
+    T: 150
+  dt: 0.1
+  sig: 0.1
+  
+lv:
+  train:
+    N: 500
+    T: 200
+  valid:
+    N: 100
+    T: 200
+  test:
+    N: 100
+    T: 600
+  dt: 0.1
+  beta: 0.5
+  delta: 0.2
+  clean: True
+  DIFF: 0.01
+
+rot_mnist:
+  train:
+    N: 500
+    T: 16
+  valid: 
+    N: 60
+    T: 16
+  test:
+    N: 60
+    T: 16
+  digit: 3
+
+
+mov_mnist:
+  train:
+    N: 100
+    T: 15
+  valid: 
+    N: 25
+    T: 15
+  test:
+    N: 25
+    T: 30
+  style: [0,1,2,3,4,5,6,7,8,9]
+  ndigits: 1
+
+
+bb:
+  train:
+    N: 2000
+    T: 26
+  valid: 
+    N: 100
+    T: 26
+  test:
+    N: 100
+    T: 52
+  nballs: 1
+  
+
