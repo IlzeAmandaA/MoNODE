@@ -220,10 +220,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
                 Xrec_vl, ztL_vl = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])[:2]
-                Xrec_te, ztL_te = invodevae(test_batch,   L=args.plotL, T_custom=test_batch.shape[1])[:2]
 
                 plot_results(plotter, args, \
-                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, Xrec_te, ztL_te, test_batch, \
+                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, \
                              elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, te_mse_meter, test_elbo_meter)
             
 

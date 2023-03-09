@@ -11,16 +11,14 @@ palette = list(mcolors.TABLEAU_COLORS.keys())
 
 
 def plot_results(plotter, args, \
-                 tr_rec,ztl_tr, trainset, vl_rec, ztl_vl, validset, te_rec, ztl_te, testset, \
+                 tr_rec,ztl_tr, trainset, vl_rec, ztl_vl, validset,\
                  elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter):
 
     plotter.plot_fit(trainset, tr_rec, 'tr')
     plotter.plot_fit(validset,  vl_rec, 'valid')
-    plotter.plot_fit(testset,  te_rec, 'test')
 
     plotter.plot_latent(ztl_tr, 'tr')
     plotter.plot_latent(ztl_vl, 'valid')
-    plotter.plot_latent(ztl_te, 'test')
 
     plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, test_mse_meter, test_elbo_meter)
 
