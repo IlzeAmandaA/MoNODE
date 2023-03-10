@@ -1,6 +1,6 @@
 sin:
   train:
-    N: 40 #80
+    N: 80 #40 small
     T: 50
   valid:
     N: 25 
