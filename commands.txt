@@ -1,9 +1,9 @@
 Commands for experiments:
 
 ####### SIN ##########
-python main.py --task sin --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500
-python main.py --task sin --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1500 --contr_loss False
-python main.py --task sin --solver dopri5 --batch_size 10 --T_in 10 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 --cont_loss False
+python main.py --task sin --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000
+python main.py --task sin --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000 --contr_loss False
+python main.py --task sin --solver dopri5 --batch_size 10 --T_in 10 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1000 --cont_loss False
 
 ############## LV ##############
 python main.py --task lv --solver dopri5 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
