@@ -14,6 +14,11 @@ python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_i
 python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 --contr_loss False
 python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 5 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
 
+############## ROT MNIST_OU ##################
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 1 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1500 
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 1 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1500 --contr_loss False
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1500 --contr_loss False
+
 ############# MOVING MNIST ######################
 python main.py --task mov_mnist --solver dopri5 --batch_size 25 --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000
 python main.py --task mov_mnist --solver dopri5 --batch_size 25 --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000 --contr_loss False
