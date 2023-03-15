@@ -27,7 +27,7 @@ class Plotter:
     def __init__(self, root, task_name):
         self.task_name    = task_name
         self.path_prefix  = root
-        if self.task_name in ['rot_mnist', 'mov_mnist', 'bb']:
+        if self.task_name in ['rot_mnist', 'rot_mnist_ou', 'mov_mnist', 'bb']:
             self.plot_fit_fnc    = plot_mnist
         if self.task_name=='sin':
             self.plot_fit_fnc = plot_sin
