@@ -73,7 +73,7 @@ parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--dt', type=float, default=0.1,
                     help="numerical solver dt")
-parser.add_argument('--use_adjoint', type=eval, default=False,
+parser.add_argument('--use_adjoint', type=eval, default=True, #we used False
                     help="Use adjoint method for gradient computation")
 
 #vae
