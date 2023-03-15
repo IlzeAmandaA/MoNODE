@@ -17,6 +17,7 @@ KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'mov_mnist', 'sin', 'bb', 'lv']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 LV_TYPE = ['clean', 'all']
+GRADIENT_ESTIMATION = ['no_adjoint', 'adjoint', 'ac_adjoint']
 parser = argparse.ArgumentParser('Invariant Latent ODE')
 
 #data
@@ -73,7 +74,7 @@ parser.add_argument('--solver', type=str, default='euler', choices=SOLVERS,
                     help="ODE solver for numerical integration")
 parser.add_argument('--dt', type=float, default=0.1,
                     help="numerical solver dt")
-parser.add_argument('--use_adjoint', type=eval, default=True, #we used False
+parser.add_argument('--use_adjoint', type=str, default='adjoint', choices=GRADIENT_ESTIMATION, #we used False
                     help="Use adjoint method for gradient computation")
 
 #vae
@@ -110,7 +111,7 @@ parser.add_argument('--forecast_tr',type=int, default=2,
                     help="Number of forecast steps for plotting train")
 parser.add_argument('--forecast_vl',type=int, default=2,
                     help="Number of forecast steps for plotting test")
-parser.add_argument('--beta_contr',type=int, default=1, 
+parser.add_argument('--beta_contr',type=float, default=1.0, 
                     help="Scaling factor for contrastive loss")
 
 #log 

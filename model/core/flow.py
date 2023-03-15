@@ -1,7 +1,9 @@
+import sys
 import torch
 import torch.nn as nn
 from torchdiffeq import odeint_adjoint
 from torchdiffeq import odeint as odeint_nonadjoint
+from TorchDiffEqPack import odesolve as ac_adjoint
 
 
 class ODEfunc(nn.Module):
@@ -61,7 +63,7 @@ class ODEfunc(nn.Module):
 
 
 class Flow(nn.Module):
-    def __init__(self, diffeq, order = 2, solver='dopri5', atol=1e-6, rtol=1e-6, use_adjoint=False):
+    def __init__(self, diffeq, order = 2, solver='dopri5', atol=1e-6, rtol=1e-6, use_adjoint='adjoint'):
         """
         Defines an ODE flow:
             mainly defines forward() method for forward numerical integration of an ODEfunc object
@@ -79,7 +81,7 @@ class Flow(nn.Module):
         self.atol = atol
         self.rtol = rtol
         self.use_adjoint = use_adjoint
-    
+
     @property
     def device(self):
         return self.odefunc.device
@@ -92,22 +94,53 @@ class Flow(nn.Module):
         @param zc: Context variable
         @return: zt, logp: (N,T,2q) tensor, (N,T) tensor
         """
-        odeint = odeint_adjoint if self.use_adjoint else odeint_nonadjoint
+        
         if self.odefunc.diffeq.type == 'SVGP' :
             self.odefunc.before_odeint(rebuild_cache=True)
         self.odefunc.augment(zc)
-            
-        zt = odeint(
-            self.odefunc,
-            z0,
-            ts,
-            atol=self.atol,
-            rtol=self.rtol,
-            method=self.solver
-        )
+
+        if self.use_adjoint == 'no_adjoint':
+            odeint = odeint_nonadjoint
+            zt = odeint(
+                self.odefunc,
+                z0,
+                ts,
+                atol=self.atol,
+                rtol=self.rtol,
+                method=self.solver
+                )
+        elif self.use_adjoint == 'adjoint':
+            odeint = odeint_adjoint
+            zt = odeint(
+                self.odefunc,
+                z0,
+                ts,
+                atol=self.atol,
+                rtol=self.rtol,
+                method=self.solver
+                )
+        elif self.use_adjoint == 'ac_adjoint':
+            odeint = ac_adjoint
+            options = {}
+            options.update({'method': self.solver})
+            options.update({'h': None})
+            options.update({'t0': ts[0].item()})
+            options.update({'t1': ts[-1].item()})
+            options.update({'rtol': 1e-7})
+            options.update({'atol': 1e-8})
+            options.update({'print_neval': False})
+            options.update({'neval_max': 1000000})
+            options.update({'t_eval':ts.tolist()})
+            options.update({'interpolation_method':'cubic'})
+            zt = odeint(
+                self.odefunc,
+                z0,
+                options=options)
+                
+        else:
+            sys.exit('Invalid gradient estimator')
 
         return zt.permute(1,0,2,3) if zt.ndim == 4 else zt.permute(1,0,2) # N,T,nobj,q or N,T,q
-        #return zt.permute(1,0,2,3) # N,T,nobj,q or N,T,q
 
 
     def num_evals(self):

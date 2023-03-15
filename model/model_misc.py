@@ -1,4 +1,5 @@
 import os, numpy as np
+from datetime import datetime
 import torch
 from torch.distributions import kl_divergence as kl
 
@@ -100,8 +101,8 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     kl_z0_meter = log_utils.CachedRunningAverageMeter(0.97)
     tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
     contr_meter = log_utils.CachedRunningAverageMeter(0.97)
-    te_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
-    test_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
+    vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
+    vl_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
 
     logger.info('********** Started Training **********')
 
@@ -119,6 +120,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
 
     ########## Training loop ###########
+    start_time=datetime.now()
     global_itr = 0
     best_valid_loss = None
     test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
@@ -131,7 +133,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
                 if ep < args.Nepoch//2:
                     if args.task =='sin':
-                        min_T = 5 
+                        min_T = 15 #5 
                     elif args.task == 'lv':
                         min_T = 10
                     elif args.task == 'spiral':
@@ -181,10 +183,14 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
                 valid_elbos.append(valid_elbo.item())
                 valid_mses.append(valid_mse.item())
-            valid_elbo, valid_mse = np.mean(np.array(valid_elbos)),np.mean(np.array(valid_mses))
+            valid_elbo, valid_mse, valid_std = np.mean(np.array(valid_elbos)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
 
             logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | valid_elbo {:5.3f} | valid_mse:{:5.3f} | contr_loss:{:5.3f}({:5.3f})'.\
                 format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, valid_elbo, valid_mse, contr_meter.val, contr_meter.avg)) 
+            
+            # update valid loggers
+            vl_mse_meter.update(valid_mse, ep, valid_std) 
+            vl_elbo_meter.update(valid_elbo,ep)
             
             #compare validation error seen so far
             if best_valid_loss is None:
@@ -202,20 +208,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                     test_elbos.append(test_elbo.item())
                     test_mses.append(test_mse.item())
                 test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))
-                # update test loggers
-                te_mse_meter.update(test_mse, ep, test_std) 
-                test_elbo_meter.update(test_elbo,ep)
                 logger.info('********** Current Best Model based on validation error ***********')
                 logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
                 format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
-
-
-            if ep == (args.Nepoch-1):
-                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
-                format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
-
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_final.pth'))
-
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
@@ -223,6 +218,14 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
                 plot_results(plotter, args, \
                              Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, \
-                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, te_mse_meter, test_elbo_meter)
-            
+                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter)
+
+
+    logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
+                format(ep, args.Nepoch, datetime.now()-start_time, elbo_meter.val, vl_elbo_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
+    
+    torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(ep)+'_.pth'))
+
+    
+
 
