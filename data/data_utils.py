@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from   torch.utils import data
-from data.data_gen import gen_sin_data, gen_lv_data, gen_rmnist_data, gen_mmnist_data, gen_bb_data
+from data.data_gen import gen_sin_data, gen_lv_data, gen_rmnist_data, gen_rmnist_ou_data, gen_mmnist_data, gen_bb_data
 
 
 from model.misc import io_utils
@@ -15,7 +15,7 @@ def _adjust_name(data_path, substr, insertion):
 
 
 def load_data(args, device, dtype):
-	if args.task in ['rot_mnist', 'mov_mnist', 'sin', 'lv', 'spiral', 'bb'] :
+	if args.task in ['rot_mnist', 'rot_mnist_ou', 'mov_mnist', 'sin', 'lv', 'spiral', 'bb'] :
 		(trainset, valset, testset), params = __load_data(args, device, dtype, args.task)
 	else:
 		return ValueError(r'Invalid task {arg.task}')
@@ -57,12 +57,15 @@ def __load_data(args, device, dtype, dataset=None):
 		assert Xte.shape[0] == params[dataset]['test']['N'] and Xte.shape[1] == params[dataset]['test']['T']
 			
 	except:
+		print(dataset)
 		if dataset=='sin':
 			data_loader_fnc = gen_sin_data
 		elif dataset == 'lv':
 			data_loader_fnc = gen_lv_data
 		elif dataset == 'rot_mnist':
 			data_loader_fnc = gen_rmnist_data
+		elif dataset == 'rot_mnist_ou':
+			data_loader_fnc = gen_rmnist_ou_data
 		elif dataset == 'mov_mnist':
 			data_loader_fnc = gen_mmnist_data
 		elif dataset == 'bb':

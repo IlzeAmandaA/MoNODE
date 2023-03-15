@@ -81,10 +81,9 @@ def gen_rmnist_data(data_path, params, flag, task='rot_mnist'):
 	T = params[task][flag]['T'] 
 	#load MNIST digits
 	data = RotatingMNIST('data/', data_n = N, n_angles = T, digit=params[task]['digit'])
+
 	data._gen_angles()
 	data._sample_digit()
-
-	#generate rotation sequences
 	videos = data._sample_rotation()
 
 	#normalize
@@ -96,6 +95,24 @@ def gen_rmnist_data(data_path, params, flag, task='rot_mnist'):
 	t0s   = torch.randint(0,T,[Xt.shape[0]])
 	Xt   = torch.stack([Xt[i,t0:t0+T]   for i,t0 in enumerate(t0s)])
 	plot_mnist(Xt[:15], Xt[15:], fname='data/rot_mnist/example_rmnist' + flag)
+	#save
+	torch.save(Xt, data_path)
+
+def gen_rmnist_ou_data(data_path, params, flag, task='rot_mnist_ou'):
+	N = params[task][flag]['N']
+	T = params[task][flag]['T'] 
+	#load MNIST digits
+	data = RotatingMNIST('data/', data_n = N, n_angles = T, digit=params[task]['digit'])
+	
+	# new stochastic setup
+	data._gen_angles_stochastic()
+	data._sample_digit()
+	videos = data._sample_rotation_sequentially()
+
+	#normalize
+	Xt = data._collate_fn(videos) #N,T,1,dim,dim
+
+	plot_mnist(Xt, Xt, fname='data/rot_mnist_ou/example_rmnist_ou' + flag)
 	#save
 	torch.save(Xt, data_path)
 

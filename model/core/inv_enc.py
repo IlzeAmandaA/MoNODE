@@ -6,7 +6,7 @@ class INV_ENC(nn.Module):
     def __init__(self, task, last_layer_gp=None, vae_enc=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
         super(INV_ENC, self).__init__()
         self.last_layer_gp = last_layer_gp
-        if task=='rot_mnist' or task=='mov_mnist':
+        if task=='rot_mnist' or task=='rot_mnist_ou' or task=='mov_mnist':
             self.inv_encoder = InvariantEncoderCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv).to(device)
         if task=='bb':
             self.inv_encoder = InvariantEncoderRCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv, vae_enc=vae_enc).to(device)

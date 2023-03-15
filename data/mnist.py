@@ -62,6 +62,7 @@ class RotatingMNIST(MNIST):
     def _sample_rotation(self):
         """ Rotate the input MNIST image in angles specified """
         rotated_imgs = np.array(self.data_digit_imgs).reshape((-1, 1, self.frame_size, self.frame_size))
+        print(self.data_digit_imgs.shape)
         for a in self.angles:
             rotated_imgs = np.concatenate(
                 (
@@ -71,6 +72,50 @@ class RotatingMNIST(MNIST):
                 axis=1,
             )
         return rotated_imgs
+
+    def _gen_angles_stochastic(self):
+        import math
+        x0 = torch.rand([self.data_n]) * 30 - 15
+        mu = torch.zeros_like(x0) # (torch.arange(1,6)-2).repeat(20,1).reshape(-1) * 3
+
+        theta = 1.0
+        sig   = math.sqrt(0.1) 
+
+        def f(x):
+            return theta*(x-mu) # + 5*theta*(math.pi*(x-mu)).sin()
+
+        def g(x):
+            return sig * math.sqrt(2*theta) * torch.randn_like(x)
+
+        X  = [x0]
+        dt = 0.01
+        L = 10
+        for t in range(L*self.n_angles-1):
+            x_next = X[t] - dt*f(X[t]) + math.sqrt(dt)*g(X[t])
+            X.append(x_next)
+        
+        self.angles = torch.stack(X[::L]).numpy().T # N,T
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.angles.T[:,:10],'*-')
+        # plt.savefig('deneme.png')
+        # plt.close()
+
+    def _sample_rotation_sequentially(self):
+        """ Rotate the input MNIST image in angles specified """
+        # self.data_digit_imgs is [N,28,28]
+        # self.angles is [N,T]
+        self.data_digit_imgs = self.data_digit_imgs.numpy()
+        rot_imgs = []
+        for it,(img,angles) in enumerate(zip(self.data_digit_imgs,self.angles)):
+            rot_imgs_ = []
+            angles = angles / 2 / np.pi * 360
+            # angles = angles - angles[0]
+            for angle in angles:
+                rot_img = rotate(img.reshape(1,28,28), angle, axes=(1, 2), reshape=False)[0]
+                rot_imgs_.append(rot_img.copy())
+            rot_imgs.append(np.stack(rot_imgs_))
+        rot_imgs = np.stack(rot_imgs) # N,T,28,28
+        return rot_imgs
 
 
 class MovingMNIST(MNIST):

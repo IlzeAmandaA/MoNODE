@@ -93,8 +93,8 @@ class VAE(nn.Module):
 
         ### build encoder
         lhood_distribution = 'bernoulli'
-        if task in ['rot_mnist', 'mov_mnist']:
-            if task == 'rot_mnist':
+        if task in ['rot_mnist', 'rot_mnist_ou', 'mov_mnist']:
+            if task == 'rot_mnist' or task == 'rot_mnist_ou':
                 self.encoder = PositionEncoderCNN(task=task, out_distr='normal', enc_out_dim=ode_latent_dim//order, n_filt=n_filt, T_in=T_in).to(device)
                 self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
             elif task == 'mov_mnist':
@@ -212,7 +212,7 @@ class EncoderCNN(AbstractEncoder):
         super(EncoderCNN, self).__init__()
         self.enc_out_dim = enc_out_dim
         self.out_distr  = out_distr
-        if task=='rot_mnist':
+        if task=='rot_mnist' or task=='rot_mnist_ou':
             self.cnn, in_features = build_rot_mnist_cnn_enc(n_in_channels, n_filt)
         elif task=='mov_mnist':
             self.cnn, in_features = build_mov_mnist_cnn_enc(n_in_channels, n_filt)
@@ -273,7 +273,7 @@ class Decoder(nn.Module):
     def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None, act='relu'):
         super(Decoder, self).__init__()
         self.distribution = distribution
-        if task=='rot_mnist':
+        if task=='rot_mnist' or task=='rot_mnist_ou':
             self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='mov_mnist':
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)

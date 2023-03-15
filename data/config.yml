@@ -39,6 +39,17 @@ rot_mnist:
     T: 16
   digit: 3
 
+rot_mnist_ou:
+  train:
+    N: 1000
+    T: 16
+  valid: 
+    N: 100
+    T: 16
+  test:
+    N: 100
+    T: 16
+  digit: 3
 
 mov_mnist:
   train:
