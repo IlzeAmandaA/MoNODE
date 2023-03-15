@@ -133,7 +133,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
                 if ep < args.Nepoch//2:
                     if args.task =='sin':
-                        min_T = 15 #5 
+                        min_T = 5 
                     elif args.task == 'lv':
                         min_T = 10
                     elif args.task == 'spiral':
@@ -224,7 +224,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
                 format(ep, args.Nepoch, datetime.now()-start_time, elbo_meter.val, vl_elbo_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
     
-    torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(ep)+'_.pth'))
+    torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(ep+1)+'_.pth'))
 
     
 
