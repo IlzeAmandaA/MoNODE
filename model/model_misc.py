@@ -73,7 +73,7 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
         in_data = data 
     Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
     lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
-    if contr_loss:
+    if contr_loss and model.is_inv:
         contr_learn_loss = contrastive_loss(C)
     else:
         contr_learn_loss = torch.zeros_like(lhood)
