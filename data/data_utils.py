@@ -57,7 +57,6 @@ def __load_data(args, device, dtype, dataset=None):
 		assert Xte.shape[0] == params[dataset]['test']['N'] and Xte.shape[1] == params[dataset]['test']['T']
 			
 	except:
-		print(dataset)
 		if dataset=='sin':
 			data_loader_fnc = gen_sin_data
 		elif dataset == 'lv':
@@ -87,6 +86,10 @@ def __load_data(args, device, dtype, dataset=None):
 	Xtr = Xtr.to(device).to(dtype)
 	Xvl = Xvl.to(device).to(dtype)
 	Xte = Xte.to(device).to(dtype)
+
+	print('Train data: ', Xtr.shape)
+	print('Val   data: ', Xvl.shape)
+	print('Test  data: ', Xte.shape)
 
 	return __build_dataset(args.num_workers, args.batch_size, Xtr, Xvl, Xte), params
 
