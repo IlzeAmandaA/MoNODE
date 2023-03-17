@@ -175,14 +175,6 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             inducing_kl_meter.update(kl_u.item(), global_itr)
             global_itr +=1
 
-
-            with torch.no_grad():
-                Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
-
-                plot_results(plotter, args, \
-                                Xrec_tr, ztL_tr, tr_minibatch, Xrec_tr, ztL_tr, tr_minibatch, C_tr, C_tr, \
-                                elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, tr_mse_meter, elbo_meter)
-
         with torch.no_grad():
             
             valid_elbos,valid_mses = [],[]
