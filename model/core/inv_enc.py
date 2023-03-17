@@ -66,9 +66,9 @@ class InvariantEncoderCNN(EncoderCNN):
         [N,T,nc,d,d] = X.shape
         T_inv = T//2 if self.T_inv is None else self.T_inv
         T_inv = min(T_inv,T)
-        t = torch.stack([torch.randperm(T)[:T_inv] for _ in range(N)], 1).to(X.device)
-        index = torch.arange(N).repeat(T_inv, 1).to(X.device)  
-        X = X[index.view(-1),t.view(-1)].view(T_inv * N, nc, d, d)         
+        t     = torch.stack([torch.randperm(T)[:T_inv] for _ in range(N)], 1).to(X.device) # T_inv,N
+        index = torch.arange(N).repeat(T_inv, 1).to(X.device) # T_inv,N
+        X     = X[index.view(-1),t.view(-1)].view(T_inv * N, nc, d, d)         
         X_out = super().forward(X) # N*T,_
         return X_out.reshape(N,T_inv,self.enc_out_dim)
 
