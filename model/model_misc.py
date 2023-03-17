@@ -175,6 +175,14 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             inducing_kl_meter.update(kl_u.item(), global_itr)
             global_itr +=1
 
+
+            with torch.no_grad():
+                Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
+
+                plot_results(plotter, args, \
+                                Xrec_tr, ztL_tr, tr_minibatch, Xrec_tr, ztL_tr, tr_minibatch, C_tr, C_tr, \
+                                elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, tr_mse_meter, elbo_meter)
+
         with torch.no_grad():
             
             valid_elbos,valid_mses = [],[]
@@ -213,11 +221,11 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
 
             if ep % args.plot_every==0:
-                Xrec_tr, ztL_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])[:2]
-                Xrec_vl, ztL_vl = invodevae(valid_batch,   L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])[:2]
+                Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
+                Xrec_vl, ztL_vl, _, _, C_vl = invodevae(valid_batch,  L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])
 
                 plot_results(plotter, args, \
-                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, \
+                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, C_tr, C_vl, \
                              elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter)
 
 

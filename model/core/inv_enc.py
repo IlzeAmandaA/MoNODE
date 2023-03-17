@@ -70,7 +70,8 @@ class InvariantEncoderCNN(EncoderCNN):
         index = torch.arange(N).repeat(T_inv, 1).to(X.device) # T_inv,N
         X     = X[index.view(-1),t.view(-1)].view(T_inv * N, nc, d, d)         
         X_out = super().forward(X) # N*T,_
-        return X_out.reshape(N,T_inv,self.enc_out_dim)
+        # return X_out.reshape(N,T_inv,self.enc_out_dim)
+        return X_out.reshape(T_inv,N,self.enc_out_dim).permute(1,0,2)
 
 class InvariantEncoderRNN(EncoderRNN):
     def __init__(self, input_dim, T_inv=None, rnn_hidden=10, enc_out_dim=16, out_distr='dirac'):

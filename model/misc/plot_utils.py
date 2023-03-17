@@ -11,7 +11,7 @@ palette = list(mcolors.TABLEAU_COLORS.keys())
 
 
 def plot_results(plotter, args, \
-                 tr_rec,ztl_tr, trainset, vl_rec, ztl_vl, validset,\
+                 tr_rec,ztl_tr, trainset, vl_rec, ztl_vl, validset, C_tr, C_vl, \
                  elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter):
 
     plotter.plot_fit(trainset, tr_rec, 'tr')
@@ -19,6 +19,9 @@ def plot_results(plotter, args, \
 
     plotter.plot_latent(ztl_tr, 'tr')
     plotter.plot_latent(ztl_vl, 'valid')
+
+    plotter.plot_C(C_tr, 'tr')
+    plotter.plot_C(C_vl, 'valid')
 
     plot_trace(args, elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter)
 
@@ -44,6 +47,28 @@ class Plotter:
         fname = self.task_name + '_latents_' + fname + '.png'
         fname = os.path.join(self.path_prefix, fname)
         self.plot_latent_fnc(z, fname=fname)
+    
+    def plot_C(self, C, fname=''):
+        if C is None:
+            return
+        else:
+            fname = self.task_name + '_C_' + fname + '.png'
+            fname = os.path.join(self.path_prefix, fname)
+
+            C = C.mean(0) if C.ndim==4 else C
+            C = C / C.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
+            N_,T_,q_ = C.shape
+            C = C.reshape(N_*T_,q_) # NT,q
+            C = (C.unsqueeze(0) * C.unsqueeze(1)).sum(-1) # NT, NT
+            plt.figure(1,(12,10))
+            plt.imshow(C)
+            plt.colorbar()
+            plt.xticks([])
+            plt.yticks([])
+            plt.savefig(fname)
+            plt.close()
+        
+
 
 
 def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
