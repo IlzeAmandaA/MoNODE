@@ -54,14 +54,13 @@ class Plotter:
         else:
             fname = self.task_name + '_C_' + fname + '.png'
             fname = os.path.join(self.path_prefix, fname)
-
             C = C.mean(0) if C.ndim==4 else C
             C = C / C.pow(2).sum(-1,keepdim=True).sqrt() # N,Tinv,q
             N_,T_,q_ = C.shape
             C = C.reshape(N_*T_,q_) # NT,q
             C = (C.unsqueeze(0) * C.unsqueeze(1)).sum(-1) # NT, NT
             plt.figure(1,(12,10))
-            plt.imshow(C)
+            plt.imshow(C.detach().cpu().numpy())
             plt.colorbar()
             plt.xticks([])
             plt.yticks([])
