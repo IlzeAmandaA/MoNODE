@@ -105,7 +105,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     vl_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
     time_meter = log_utils.CachedRunningAverageMeter(0.97)
 
-    time_dict = {'euler':{'first':300,'second':600,'third':900}, 'rk4':{'first':1800,'second':2700,'third':3300},'dopri5':{'first':7200,'second':10800,'third':14400}}
+    time_dict = {'euler':{'first':200,'second':600,'third':900}, 'rk4':{'first':250,'second':2700,'third':3300},'dopri5':{'first':2000,'second':10800,'third':14400}}
     first,second,third = False, False, False
     logger.info('********** Started Training **********')
 
