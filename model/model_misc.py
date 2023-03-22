@@ -103,7 +103,10 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     contr_meter = log_utils.CachedRunningAverageMeter(0.97)
     vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
     vl_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
+    time_meter = log_utils.CachedRunningAverageMeter(0.97)
 
+    time_dict = {'euler':{'first':300,'second':600,'third':900}, 'rk4':{'first':1800,'second':2700,'third':3300},'dopri5':{'first':7200,'second':10800,'third':14400}}
+    first,second,third = False, False, False
     logger.info('********** Started Training **********')
 
     if freeze_dyn:
@@ -175,6 +178,18 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             inducing_kl_meter.update(kl_u.item(), global_itr)
             global_itr +=1
 
+            val = datetime.now()-start_time
+            if val.seconds >= time_dict[args.solver]["first"] and not first:
+                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
+                first = True
+            if val.seconds >= time_dict[args.solver]["second"] and not second:
+                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
+                second = True
+            if val.seconds >= time_dict[args.solver]["third"] and not third:
+                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
+                third = True
+            
+
         with torch.no_grad():
             
             valid_elbos,valid_mses = [],[]
@@ -191,6 +206,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             # update valid loggers
             vl_mse_meter.update(valid_mse, ep, valid_std) 
             vl_elbo_meter.update(valid_elbo,ep)
+            time_meter.update(val.seconds, ep)
+
+            
             
             #compare validation error seen so far
             if best_valid_loss is None:
@@ -218,7 +236,8 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
                 plot_results(plotter, args, \
                              Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, C_tr, C_vl, \
-                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter)
+                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter, \
+                             time_meter)
 
 
     logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
