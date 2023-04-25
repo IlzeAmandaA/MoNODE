@@ -3,7 +3,7 @@ import torch.nn as nn
 
  
 class INVODEVAE(nn.Module):
-    def __init__(self, flow, vae, order, steps, dt, inv_enc=None, aug=False, nobj=1) -> None:
+    def __init__(self, model, flow, vae, order, steps, dt, inv_enc=None, aug=False, nobj=1) -> None:
         super().__init__()
 
         self.flow = flow #Dynamics 
@@ -14,6 +14,7 @@ class INVODEVAE(nn.Module):
         self.order = order
         self.aug = aug
         self.Nobj = nobj
+        self.model = model
 
     @property
     def device(self):
@@ -37,11 +38,16 @@ class INVODEVAE(nn.Module):
         @param c: invariant code (L,N,q)
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
-        if self.order == 1:
-            stL = ztL
-        elif self.order == 2:
-            q = ztL.shape[-1]//2
-            stL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
+        if self.model =='sonode':
+            Xrec =  ztL[:,:,:,0].mean(0) 
+            return Xrec.unsqueeze(-1) #Only position is used for reconstructions, N, T, 1
+        
+        elif self.model == 'node':
+            if self.order == 1:
+                stL = ztL
+            elif self.order == 2:
+                q = ztL.shape[-1]//2
+                stL = ztL[:,:,:,:q] # L,N,T,q Only the position is decoded
 
         if c is not None:
             cT = torch.stack([c]*ztL.shape[2],-2) # L,N,T,q
@@ -56,6 +62,7 @@ class INVODEVAE(nn.Module):
         '''
         ts  = self.dt * torch.arange(T,dtype=torch.float).to(z0L.device)
         # sample L trajectories
+
         ztL = torch.stack([self.flow(z0, ts) for z0 in z0L]) # [L,N,T,nobj,q]
         return ztL # L,N,T,Nobj,q)
 
@@ -69,6 +76,7 @@ class INVODEVAE(nn.Module):
         return torch.stack(ztL) # L,N,T,nobj,2q
 
     def forward(self, X, L=1, T_custom=None):
+
         try:
             self.inv_enc.last_layer_gp.build_cache()
         except:
@@ -78,22 +86,28 @@ class INVODEVAE(nn.Module):
         if T_custom:
             T = T_custom
 
-        #encode dynamics
-        s0_mu, s0_logv = self.vae.encoder(X) # N,q
-        z0 = self.vae.encoder.sample(s0_mu, s0_logv, L=L) # N,q or L,N,q
-        z0 = z0.unsqueeze(0) if z0.ndim==2 else z0 # L,N,q
+        #if latent model
+        if self.model == 'node':
+            s0_mu, s0_logv = self.vae.encoder(X) # N,q
+            z0 = self.vae.encoder.sample(s0_mu, s0_logv, L=L) # N,q or L,N,q
+            z0 = z0.unsqueeze(0) if z0.ndim==2 else z0 # L,N,q
 
-        #if multiple object separate latent vector (but shared dynamics)
-        q  = z0.shape[-1]
-        z0 = z0.reshape(L,N,self.Nobj,q//self.Nobj) # L,N,nobj,q_
+            #if multiple object separate latent vector (but shared dynamics)
+            q  = z0.shape[-1]
+            z0 = z0.reshape(L,N,self.Nobj,q//self.Nobj) # L,N,nobj,q_
 
-        v0_mu, v0_logv = None, None
-        if self.order == 2:
-            assert not self.aug, 'sorry, second order systems + augmented dynamics not implemented yet'
-            v0_mu, v0_logv = self.vae.encoder_v(X)
-            v0 = self.vae.encoder_v.sample(v0_mu, v0_logv, L=L) # N,q or L,N,q
-            z0 = torch.concat([z0,v0],dim=1) #N, 2q
+            v0_mu, v0_logv = None, None
+            if self.order == 2:
+                assert not self.aug, 'sorry, second order systems + augmented dynamics not implemented yet'
+                v0_mu, v0_logv = self.vae.encoder_v(X)
+                v0 = self.vae.encoder_v.sample(v0_mu, v0_logv, L=L) # N,q or L,N,q
+                z0 = torch.concat([z0,v0],dim=1) #N, 2q
         
+        elif self.model =='sonode':
+            s0_mu, s0_logv,v0_mu, v0_logv = None, None, None, None
+            z0 = self.vae(X[:,0]).reshape(1,N,2) #corresponds to line 131 in sonode code, (1,N,2)
+
+
 
         #encode content (invariance)
         if self.is_inv:
@@ -104,17 +118,12 @@ class INVODEVAE(nn.Module):
 
         #sample trajectories
         if self.aug:
-            if self.flow.odefunc.diffeq.type == 'SVGP':
-                z0 = z0.reshape(L,N,q) # L,N,q
-                ztL  = self.sample_augmented_trajectories(z0, c, T, L) # L,N,T,q
-                Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
-            else:
-                cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
-                ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
-                ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
-                Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
-                if X.ndim==5:
-                    Xrec = Xrec.reshape([L,N,T,*X.shape[2:]])
+            cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
+            ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
+            ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
+            Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
+            if X.ndim==5:
+                Xrec = Xrec.reshape([L,N,T,*X.shape[2:]])
         else:
             #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,T,N,nobj,q

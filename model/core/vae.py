@@ -10,6 +10,26 @@ import numpy as np
 
 EPSILON = 1e-5
 
+
+class SONODE_init_velocity(nn.Module):
+    
+    def __init__(self, dim, nhidden):
+        super(SONODE_init_velocity, self).__init__()
+        self.elu = nn.ELU(inplace=False)
+        self.fc1 = nn.Linear(dim, nhidden)
+        self.fc2 = nn.Linear(nhidden, nhidden)
+        self.fc3 = nn.Linear(nhidden, dim)
+        
+    def forward(self, x0):
+        out = self.fc1(x0)
+        out = self.elu(out)
+        out = self.fc2(out)
+        out = self.elu(out)
+        out = self.fc3(out)
+        return torch.stack((x0, out),dim=1)
+
+
+
 def build_rot_mnist_cnn_enc(n_in_channels, n_filt):
     cnn =   nn.Sequential(
             nn.Conv2d(n_in_channels, n_filt, kernel_size=5, stride=2, padding=(2,2)), # 14,14

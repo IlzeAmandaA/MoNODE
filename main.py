@@ -11,10 +11,8 @@ from model.misc.torch_utils import seed_everything
 from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
-DE_MODELS = ['MLP', 'SVGP']
-INV_FNCS  = ['MLP', 'SVGP']
-KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'rot_mnist_ou',  'mov_mnist', 'sin', 'bb', 'lv']
+MODELS     = ['node', 'sonode']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 LV_TYPE = ['clean', 'all']
 GRADIENT_ESTIMATION = ['no_adjoint', 'adjoint', 'ac_adjoint']
@@ -31,41 +29,25 @@ parser.add_argument('--shuffle', type=eval, default=True,
                help='For Moving MNIST whetehr to shuffle the data')
 
 #de model
+parser.add_argument('--model', type=str, default='node', choices=MODELS,
+                    help='node model type')
 parser.add_argument('--ode_latent_dim', type=int, default=10,
                     help="Latent ODE dimensionality")
-parser.add_argument('--de', type=str, default='MLP', choices=DE_MODELS,
-                    help="Model type to learn the DE")
 parser.add_argument('--num_layers', type=int, default=2,
                     help="Number of hidden layers in MLP diff func")
 parser.add_argument('--num_hidden', type=int, default=200,
                     help="Number of hidden neurons in each layer of MLP diff func")
-parser.add_argument('--kernel', type=str, default='RBF', choices=KERNELS,
-                    help="ODE solver for numerical integration")
-parser.add_argument('--num_features', type=int, default=100,
-                    help="Number of Fourier basis functions (for pathwise sampling from GP)")
-parser.add_argument('--num_inducing', type=int, default=100,
-                    help="Number of inducing points for the sparse GP")
-parser.add_argument('--dimwise', type=eval, default=True,
-                    help="Specify separate lengthscales for every output dimension")
-parser.add_argument('--variance', type=float, default=0.7,
-                    help="Initial value for rbf variance")
-parser.add_argument('--lengthscale', type=float, default=2.0,
-                    help="Initial value for rbf lengthscale")
-parser.add_argument('--q_diag', type=eval, default=False,
-                    help="Diagonal posterior approximation for inducing variables")
 
 
 #inavariance
-parser.add_argument('--inv_fnc', type=str, default='MLP', choices=INV_FNCS,
+parser.add_argument('--inv_fnc', type=str, default='MLP',
                     help="Invariant function")
 parser.add_argument('--inv_latent_dim', type=int, default=16,
                     help="Invariant space dimensionality")
-parser.add_argument('--num_inducing_inv', type=int, default=100,
-                    help="Number of inducing points for inavariant GP")
-parser.add_argument('--contr_loss', type=eval, default=True,
-                    help="Contrastive training of the invariant encoder")
 parser.add_argument('--T_inv', type=int, default=25,
                     help="Time frames to select for RNN based Encoder for Invariance")
+parser.add_argument('--contr_loss', type=eval, default=True,
+                    help="Contrastive training of the invariant encoder")
 
 #ode stuff
 parser.add_argument('--order', type=int, default=1,
@@ -140,7 +122,7 @@ if __name__ == '__main__':
         args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), args.save, args.task)
     else:
         args.save = os.path.join(os.path.abspath(os.path.dirname(__file__)), \
-            args.save+args.task+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
+            args.save+args.task+'/'+args.model+'/'+datetime.now().strftime('%d_%m_%Y-%H:%M'), '')
     
     ############################
     io_utils.makedirs(args.save)
@@ -174,7 +156,7 @@ if __name__ == '__main__':
     invodevae.to(device)
     invodevae.to(dtype)
 
-    logger.info('********** Model Built {} ODE with invariance {} and contrastive loss {} **********'.format(args.de, args.inv_latent_dim, args.contr_loss))
+    logger.info('********** Model Built {} with invariance {} and contrastive loss {} **********'.format(args.model, args.inv_latent_dim, args.contr_loss))
     logger.info('********** Training Augemented Dynamics: {} **********'.format(invodevae.aug))
     for arg, value in sorted(vars(args).items()):
         logger.info("Argument %s: %r", arg, value)

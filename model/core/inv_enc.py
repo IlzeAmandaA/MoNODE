@@ -3,9 +3,8 @@ import torch.nn as nn
 from model.core.vae import EncoderCNN, EncoderRNN
 
 class INV_ENC(nn.Module):
-    def __init__(self, task, last_layer_gp=None, vae_enc=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
+    def __init__(self, task, vae_enc=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
         super(INV_ENC, self).__init__()
-        self.last_layer_gp = last_layer_gp
         if task=='rot_mnist' or task=='rot_mnist_ou' or task=='mov_mnist':
             self.inv_encoder = InvariantEncoderCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv).to(device)
         if task=='bb':
@@ -13,15 +12,9 @@ class INV_ENC(nn.Module):
         elif task=='sin' or task=='spiral' or task=='lv':
             data_dim = 1 if task=='sin' else 2 
             self.inv_encoder = InvariantEncoderRNN(data_dim, T_inv=T_inv, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
-    @property
-    def is_last_layer_gp(self):
-        return self.last_layer_gp is not None
 
     def kl(self):
-        if self.is_last_layer_gp:
-            return self.last_layer_gp.kl()
-        else:
-            return torch.zeros(1) * 0.0
+        return torch.zeros(1) * 0.0
 
     def forward(self, X, L=1):
         ''' 
@@ -29,14 +22,7 @@ class INV_ENC(nn.Module):
             returns [L,N,T,q]
         '''
         c = self.inv_encoder(X) # N,Tinv,q or N,ns,q
-        if self.is_last_layer_gp:
-            self.last_layer_gp.build_cache()
-            [N_,T_,q_] = c.shape
-            c = c.reshape(N_*T_,q_)
-            cL = torch.stack([self.last_layer_gp(c) for _ in range(L)]) # 
-            return cL.reshape(L,N_,T_,q_)
-        else:
-            return c.repeat([L,1,1,1]) # L,N,T,q
+        return c.repeat([L,1,1,1]) # L,N,T,q
 
 class InvariantEncoderRCNN(nn.Module):
     def __init__(self, task, out_distr='dirac', enc_out_dim=16, n_filt=8, n_in_channels=1, T_inv=15, vae_enc=None):

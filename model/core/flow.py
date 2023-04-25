@@ -94,9 +94,6 @@ class Flow(nn.Module):
         @param zc: Context variable
         @return: zt, logp: (N,T,2q) tensor, (N,T) tensor
         """
-        
-        if self.odefunc.diffeq.type == 'SVGP' :
-            self.odefunc.before_odeint(rebuild_cache=True)
         self.odefunc.augment(zc)
 
         if self.use_adjoint == 'no_adjoint':

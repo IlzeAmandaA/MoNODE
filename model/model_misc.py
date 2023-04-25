@@ -4,7 +4,7 @@ import torch
 from torch.distributions import kl_divergence as kl
 
 from model.misc import log_utils 
-from model.misc.plot_utils import plot_results
+from model.misc.plot_utils import plot_results_node, plot_results_sonode
 
 
 def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
@@ -66,23 +66,33 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
+    print('T original', T)
     if T_valid != None:
         in_data = data[:,:T_valid]
         T= T_valid
     else:
         in_data = data 
+
+    #run model    
     Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
-    lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
-    if contr_loss and model.is_inv:
-        contr_learn_loss = contrastive_loss(C)
-    else:
-        contr_learn_loss = torch.zeros_like(lhood)
-        
-    lhood = lhood * num_observations
-    kl_z0 = kl_z0 * num_observations
-    loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
-    mse   = torch.mean((Xrec-in_data)**2)
-    return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
+
+    #compute loss
+    if model.model =='sonode':
+        mse   = torch.mean((Xrec-in_data)**2)
+        return mse, 0.0, 0.0, 0.0, 0.0, 0.0, mse, 0.0
+    
+    elif model.model =='node':
+        lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
+        if contr_loss and model.is_inv:
+            contr_learn_loss = contrastive_loss(C)
+        else:
+            contr_learn_loss = torch.zeros_like(lhood)
+            
+        lhood = lhood * num_observations
+        kl_z0 = kl_z0 * num_observations
+        loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
+        mse   = torch.mean((Xrec-in_data)**2)
+        return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
 
 
 def freeze_pars(par_list):
@@ -95,15 +105,17 @@ def freeze_pars(par_list):
 
 
 def train_model(args, invodevae, plotter, trainset, validset, testset, logger, params, freeze_dyn=False):
-    inducing_kl_meter = log_utils.CachedRunningAverageMeter(0.97)
-    elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
-    nll_meter   = log_utils.CachedRunningAverageMeter(0.97)
-    kl_z0_meter = log_utils.CachedRunningAverageMeter(0.97)
-    tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
-    contr_meter = log_utils.CachedRunningAverageMeter(0.97)
-    vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
-    vl_elbo_meter  = log_utils.CachedRunningAverageMeter(0.97)
+    loss_meter  = log_utils.CachedRunningAverageMeter(0.97)
+    vl_loss_meter  = log_utils.CachedRunningAverageMeter(0.97)
     time_meter = log_utils.CachedRunningAverageMeter(0.97)
+    if args.model == 'node':
+        inducing_kl_meter = log_utils.CachedRunningAverageMeter(0.97)
+        nll_meter   = log_utils.CachedRunningAverageMeter(0.97)
+        kl_z0_meter = log_utils.CachedRunningAverageMeter(0.97)
+        tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
+        contr_meter = log_utils.CachedRunningAverageMeter(0.97)
+        vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
+        
 
     time_dict = {'euler':{'first':200,'second':600,'third':900}, 'rk4':{'first':250,'second':2700,'third':3300},'dopri5':{'first':2000,'second':10800,'third':14400}}
     first,second,third = False, False, False
@@ -128,7 +140,10 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     best_valid_loss = None
     test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
     for ep in range(args.Nepoch):
-        L = 1 if ep<args.Nepoch//2 else 5 
+        if args.model == 'sonode':
+            L=1
+        else:
+            L = 1 if ep<args.Nepoch//2 else 5 
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
             if args.task=='sin' or args.task=='spiral' or args.task=='lv': #slowly increase sequence length
@@ -162,6 +177,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                     t0s = torch.randint(0,T-T_,[N_])  #select a random initial point from the sequence
                     tr_minibatch = tr_minibatch.repeat([N_,1,1])
                     tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
+            
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
                 compute_loss(invodevae, tr_minibatch, L, num_observations = params['train']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr)
 
@@ -170,56 +186,57 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             optimizer.step()
 
             #store values 
-            elbo_meter.update(loss.item(), global_itr)
-            nll_meter.update(nlhood.item(), global_itr)
-            kl_z0_meter.update(kl_z0.item(), global_itr)
-            tr_mse_meter.update(tr_mse.item(), global_itr)
-            contr_meter.update(contr_learn_cost.item(), global_itr)
-            inducing_kl_meter.update(kl_u.item(), global_itr)
+            loss_meter.update(loss.item(), global_itr)
+            if args.model == 'node':
+                nll_meter.update(nlhood.item(), global_itr)
+                kl_z0_meter.update(kl_z0.item(), global_itr)
+                tr_mse_meter.update(tr_mse.item(), global_itr)
+                contr_meter.update(contr_learn_cost.item(), global_itr)
+                inducing_kl_meter.update(kl_u.item(), global_itr)
             global_itr +=1
 
             val = datetime.now()-start_time
-            if val.seconds >= time_dict[args.solver]["first"] and not first:
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
-                first = True
-            if val.seconds >= time_dict[args.solver]["second"] and not second:
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
-                second = True
-            if val.seconds >= time_dict[args.solver]["third"] and not third:
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(val.seconds)+'_.pth'))
-                third = True
             
-
         with torch.no_grad():
             
-            valid_elbos,valid_mses = [],[]
+
+            valid_losses,valid_mses = [],[]
             for itr_test,valid_batch in enumerate(validset):
+
                 valid_batch = valid_batch.to(invodevae.device)
-                valid_elbo, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
-                valid_elbos.append(valid_elbo.item())
+                loss, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
+                valid_losses.append(loss.item())
                 valid_mses.append(valid_mse.item())
-            valid_elbo, valid_mse, valid_std = np.mean(np.array(valid_elbos)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
+            valid_loss, valid_mse, valid_std = np.mean(np.array(valid_losses)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
 
-            logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | valid_elbo {:5.3f} | valid_mse:{:5.3f} | contr_loss:{:5.3f}({:5.3f})'.\
-                format(ep, args.Nepoch, elbo_meter.val, elbo_meter.avg, valid_elbo, valid_mse, contr_meter.val, contr_meter.avg)) 
-            
+            if args.model == 'node':
+                logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | valid_elbo {:5.3f} | valid_mse:{:5.3f} | contr_loss:{:5.3f}({:5.3f})'.\
+                    format(ep, args.Nepoch, loss_meter.val, loss_meter.avg, valid_loss, valid_mse, contr_meter.val, contr_meter.avg)) 
+            elif args.model == 'sonode':
+                logger.info('Epoch:{:4d}/{:4d} | train mse:{:8.2f}({:8.2f}) | valid mse {:5.3f}({:5.3f}) '.\
+                    format(ep, args.Nepoch, loss_meter.val, loss_meter.avg, valid_loss, np.std(np.array(valid_losses))))
+                
             # update valid loggers
-            vl_mse_meter.update(valid_mse, ep, valid_std) 
-            vl_elbo_meter.update(valid_elbo,ep)
+            vl_loss_meter.update(valid_loss,ep)
             time_meter.update(val.seconds, ep)
-
-            
-            
+            if args.model == 'node':
+                vl_mse_meter.update(valid_mse, ep, valid_std) 
+                
             #compare validation error seen so far
             if best_valid_loss is None:
                 best_valid_loss = valid_mse
 
             elif best_valid_loss > valid_mse: #we want as smaller mse
                 best_valid_loss = valid_mse
-                torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae.pth'))
 
+                torch.save({
+                    'args': args,
+                    'state_dict': invodevae.state_dict(),
+                }, os.path.join(args.save, 'invodevae.pth'))
+                            
                 #compute test error for this model 
                 test_elbos,test_mses = [],[]
+
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
                     test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, num_observations=params['test']['N'], contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_beta=args.beta_contr) 
@@ -233,17 +250,32 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
                 Xrec_vl, ztL_vl, _, _, C_vl = invodevae(valid_batch,  L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])
+                
+                if args.model == 'node':
+                    plot_results_node(plotter, args, \
+                                Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, C_tr, C_vl, \
+                                loss_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_loss_meter, \
+                                time_meter)
+                
+                elif args.model == 'sonode':
+                    plot_results_sonode(plotter, args, \
+                                        Xrec_tr, tr_minibatch, Xrec_vl, valid_batch,\
+                                        loss_meter, vl_loss_meter, time_meter)
 
-                plot_results(plotter, args, \
-                             Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, C_tr, C_vl, \
-                             elbo_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_elbo_meter, \
-                             time_meter)
 
+    if args.model == 'node':
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
+                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
+    elif args.model == 'sonode':
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_mse: {} | valid_mse: {:8.2f} '.\
+                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val))
+        
 
-    logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
-                format(ep, args.Nepoch, datetime.now()-start_time, elbo_meter.val, vl_elbo_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
+    torch.save({
+		'args': args,
+		'state_dict': invodevae.state_dict(),
+	}, os.path.join(args.save, 'invodevae_'+str(ep+1)+'_.pth'))
     
-    torch.save(invodevae.state_dict(), os.path.join(args.save, 'invodevae_'+str(ep+1)+'_.pth'))
 
     
 
