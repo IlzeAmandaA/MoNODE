@@ -69,6 +69,26 @@ class Plotter:
             plt.close()
         
 
+def plot_sin_gt(X, show=False, fname='predictions.png', N=None, D=None):
+    '''
+         X    - [N,T,d] 
+    '''
+    if N is None:
+        N = min(X.shape[0],6)
+    if D is None:
+        D = min(X.shape[-1],3)
+    Xnp    = X.detach().cpu().numpy()
+    print(Xnp.shape)
+    nc,nr = D, N
+    fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False)
+    for n in range(N):
+        for d in range(D):
+            axes[n,d].plot([t for t in range(X.shape[1])], Xnp[n,:,d].T,'o', '', color='tab:blue')
+    if show:
+        plt.show()
+    else:
+        plt.savefig(fname)
+        plt.close()
 
 
 def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):

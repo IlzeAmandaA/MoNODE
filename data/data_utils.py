@@ -1,5 +1,6 @@
 import os
 import yaml
+import json
 import numpy as np
 import torch
 import torch.nn as nn
@@ -57,6 +58,9 @@ def __load_data(args, device, dtype, dataset=None):
 		assert Xte.shape[0] == params[dataset]['test']['N'] and Xte.shape[1] == params[dataset]['test']['T']
 			
 	except:
+		with open(os.path.join(args.data_root,args.task)+'/gen_info.txt', 'w') as f:
+			f.write(json.dumps(params[dataset]))
+
 		if dataset=='sin':
 			data_loader_fnc = gen_sin_data
 		elif dataset == 'lv':

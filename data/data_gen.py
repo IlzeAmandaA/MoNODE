@@ -2,13 +2,27 @@ import torch
 import numpy as np
 from torchdiffeq import odeint
 from data.mnist import MovingMNIST, RotatingMNIST
-from model.misc.plot_utils import plot_mnist, plot_sin, plot_2d_origin, plot_bb, plot_bb_V
+from model.misc.plot_utils import plot_mnist, plot_sin_gt, plot_2d_origin, plot_bb, plot_bb_V
 from data.bb import BouncingBallsSim
 
+
+def add_noise(traj_list, time_steps, noise_weight):
+	n_samples = traj_list.size(0)
+
+	# Add noise to all the points except the first point
+	n_tp = time_steps - 1
+	noise = np.random.sample((n_samples, n_tp))
+	noise = torch.Tensor(noise).to(traj_list.device)
+
+	traj_list_w_noise = traj_list.clone()
+	# Dimension [:,:,0] is a time dimension -- do not add noise to that
+	traj_list_w_noise[:,1:] += noise_weight * noise
+	return traj_list_w_noise
 
 def gen_sin_data(data_path, params, flag, task='sin'):
 	N = params[task][flag]['N']
 	T = params[task][flag]['T']
+	noise = params[task]['noise']
 	plot = True if flag=='train' else False
 	phis = torch.rand(N,1) #
 	fs = torch.rand(N,1) * .5 + .5 # N,1, [0.5, 1.0]
@@ -18,8 +32,10 @@ def gen_sin_data(data_path, params, flag, task='sin'):
 	ts = (ts*fs+phis) * 2*np.pi # N,T
 	X  = ts.sin() * A
 	X += torch.randn_like(X)*params[task]['sig']
+	if noise > 0.0:
+		X = add_noise(X, X.shape[1], noise)
 	X = X.unsqueeze(-1) # N,T,1
-	plot_sin(X,X.unsqueeze(0),fname='data/sin/example_sin_'+flag)
+	plot_sin_gt(X,fname='data/sin/example_sin_'+flag)
 	torch.save(X, data_path)
 
 

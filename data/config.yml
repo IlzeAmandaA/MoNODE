@@ -10,6 +10,7 @@ sin:
     T: 150
   dt: 0.1
   sig: 0.1
+  noise: 0.4
   
 lv:
   train:
