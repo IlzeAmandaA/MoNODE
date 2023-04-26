@@ -4,7 +4,7 @@ import torch
 from torch.distributions import kl_divergence as kl
 
 from model.misc import log_utils 
-from model.misc.plot_utils import plot_results_node, plot_results_sonode
+from model.misc.plot_utils import plot_results
 
 
 def elbo(model, X, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L):
@@ -66,7 +66,6 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
-    print('T original', T)
     if T_valid != None:
         in_data = data[:,:T_valid]
         T= T_valid
@@ -252,15 +251,15 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 Xrec_vl, ztL_vl, _, _, C_vl = invodevae(valid_batch,  L=args.plotL, T_custom=args.forecast_vl*valid_batch.shape[1])
                 
                 if args.model == 'node':
-                    plot_results_node(plotter, args, \
-                                Xrec_tr, ztL_tr, tr_minibatch, Xrec_vl, ztL_vl, valid_batch, C_tr, C_vl, \
-                                loss_meter, nll_meter, kl_z0_meter, inducing_kl_meter, tr_mse_meter, vl_mse_meter, vl_loss_meter, \
-                                time_meter)
+                    plot_results(plotter, \
+                                Xrec_tr, tr_minibatch, Xrec_vl, valid_batch, \
+                                {"plot":{'Loss(-elbo)': loss_meter, 'Nll' : nll_meter, 'KL-z0': kl_z0_meter, "train-MSE": tr_mse_meter}, "valid-MSE": vl_mse_meter, "valid(-elbo)": vl_loss_meter, "iteration": ep, "time": time_meter}, \
+                                ztL_tr,  ztL_vl,  C_tr, C_vl,)
                 
                 elif args.model == 'sonode':
-                    plot_results_sonode(plotter, args, \
-                                        Xrec_tr, tr_minibatch, Xrec_vl, valid_batch,\
-                                        loss_meter, vl_loss_meter, time_meter)
+                    plot_results(plotter, \
+                                Xrec_tr.unsqueeze(0), tr_minibatch, Xrec_vl.unsqueeze(0), valid_batch,\
+                                {"plot":{"Loss-mse" : loss_meter, "validation-mse": vl_loss_meter}, "time" : time_meter, "iteration": ep})
 
 
     if args.model == 'node':

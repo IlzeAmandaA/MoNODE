@@ -40,7 +40,7 @@ def build_model(args, device, dtype, params):
     if args.model == 'node':
         de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') 
     elif args.model == 'sonode':
-        de = MLP(2, 1, L=3, H=20, act='elu') #in data space 
+        de = MLP(2, 1, L=2, H=20, act='elu') #in data space 
 
     flow = Flow(diffeq=de, order=args.order, solver=args.solver, use_adjoint=args.use_adjoint)
 

@@ -127,6 +127,8 @@ if __name__ == '__main__':
     ############################
     io_utils.makedirs(args.save)
     io_utils.makedirs(os.path.join(args.save, 'plots'))
+    io_utils.makedirs(os.path.join(args.save, 'plots', 'fit'))
+    io_utils.makedirs(os.path.join(args.save, 'plots', 'latents'))
     logger = io_utils.get_logger(logpath=os.path.join(args.save, 'logs.txt'))
     logger.info('Results stored in {}'.format(args.save))
 

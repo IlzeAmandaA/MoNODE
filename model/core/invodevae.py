@@ -104,9 +104,9 @@ class INVODEVAE(nn.Module):
                 z0 = torch.concat([z0,v0],dim=1) #N, 2q
         
         elif self.model =='sonode':
+            #compute velocity and concatenate to position
             s0_mu, s0_logv,v0_mu, v0_logv = None, None, None, None
             z0 = self.vae(X[:,0]).reshape(1,N,2) #corresponds to line 131 in sonode code, (1,N,2)
-
 
 
         #encode content (invariance)
