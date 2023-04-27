@@ -46,7 +46,7 @@ parser.add_argument('--inv_latent_dim', type=int, default=16,
                     help="Invariant space dimensionality")
 parser.add_argument('--T_inv', type=int, default=25,
                     help="Time frames to select for RNN based Encoder for Invariance")
-parser.add_argument('--contr_loss', type=eval, default=True,
+parser.add_argument('--contr_loss', type=eval, default=False,
                     help="Contrastive training of the invariant encoder")
 
 #ode stuff
