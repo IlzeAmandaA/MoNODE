@@ -17,9 +17,6 @@ def build_model(args, device, dtype, params):
     @return: an object of INVODEVAE class
     """
 
-    if args.model == 'sonode':
-        args.order = 2 
-
     #differential function
     aug = (args.task=='sin' or args.task=='spiral' or args.task=='lv' or args.task=='bb') and args.inv_latent_dim>0
     Nobj = 1
@@ -40,7 +37,8 @@ def build_model(args, device, dtype, params):
     if args.model == 'node':
         de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='softplus') 
     elif args.model == 'sonode':
-        de = MLP(2, 1, L=2, H=20, act='elu') #in data space 
+        #de = MLP(2, 1, L=2, H=20, act='elu') #in data space 
+        de = MLP(D_in, D_out, L=args.num_layers, H=args.num_hidden, act='elu') 
 
     flow = Flow(diffeq=de, order=args.order, solver=args.solver, use_adjoint=args.use_adjoint)
 
@@ -54,10 +52,12 @@ def build_model(args, device, dtype, params):
 
     # time-invariant network
     if args.inv_latent_dim>0:
-        
-        inv_enc = INV_ENC(task=args.task, inv_latent_dim=args.inv_latent_dim,
-            n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, vae_enc=vae.encoder, device=device).to(dtype)
-
+        if args.task == 'bb':
+            inv_enc = INV_ENC(task=args.task, inv_latent_dim=args.inv_latent_dim,
+                n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, vae_enc=vae.encoder, device=device).to(dtype)
+        else:
+            inv_enc = INV_ENC(task=args.task, inv_latent_dim=args.inv_latent_dim,
+                n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, vae_enc=None, device=device).to(dtype)
     else:
         inv_enc = None
 

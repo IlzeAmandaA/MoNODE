@@ -48,11 +48,11 @@ class ODEfunc(nn.Module):
         return dsv
 
     def second_order(self, sv):
-        q = sv.shape[1]//2
-        ds = sv[:,q:]  # N,q
-        sv = self.concat_zc(sv)
-        dv = self.diffeq(sv) # N,q  
-        return torch.cat([ds,dv],1) # N,2q  
+        q = sv.shape[-1]//2
+        ds = sv[:,:,q:]  # N,Nobj,q
+        sv = self.concat_zc(sv) # N, Nobj, q + inv_dim
+        dv = self.diffeq(sv) # N,Nobj,q  
+        return torch.cat([ds,dv],2) # N,Nobj,2q  
 
     def forward(self, t, sv): 
         self._num_evals += 1
