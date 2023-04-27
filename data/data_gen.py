@@ -5,7 +5,6 @@ from data.mnist import MovingMNIST, RotatingMNIST
 from model.misc.plot_utils import plot_mnist, plot_sin_gt, plot_2d_origin, plot_bb, plot_bb_V
 from data.bb import BouncingBallsSim
 
-
 def add_noise(traj_list, time_steps, noise_weight):
 	n_samples = traj_list.size(0)
 
@@ -14,9 +13,27 @@ def add_noise(traj_list, time_steps, noise_weight):
 	noise = np.random.sample((n_samples, n_tp))
 	noise = torch.Tensor(noise).to(traj_list.device)
 
+
 	traj_list_w_noise = traj_list.clone()
 	# Dimension [:,:,0] is a time dimension -- do not add noise to that
 	traj_list_w_noise[:,1:] += noise_weight * noise
+	return traj_list_w_noise
+
+
+def add_noise_lv(traj_list, time_steps, noise_weight):
+	n_samples = traj_list.size(0)
+
+	# Add noise to all the points except the first point
+	n_tp = time_steps - 1
+	noise_x1 = np.random.sample((n_samples, n_tp))
+	noise_x1 = torch.Tensor(noise_x1).to(traj_list.device)
+	noise_x2 = np.random.sample((n_samples, n_tp))
+	noise_x2 = torch.Tensor(noise_x2).to(traj_list.device)
+
+	traj_list_w_noise = traj_list.clone()
+	# Dimension [:,:,0] is a time dimension -- do not add noise to that
+	traj_list_w_noise[:,1:,0] += noise_weight * noise_x1
+	traj_list_w_noise[:,1:,1] += noise_weight * noise_x2
 	return traj_list_w_noise
 
 def gen_sin_data(data_path, params, flag, task='sin'):
@@ -31,7 +48,6 @@ def gen_sin_data(data_path, params, flag, task='sin'):
 	ts = torch.stack([ts]*N)  # N,T
 	ts = (ts*fs+phis) * 2*np.pi # N,T
 	X  = ts.sin() * A
-	X += torch.randn_like(X)*params[task]['sig']
 	if noise > 0.0:
 		X = add_noise(X, X.shape[1], noise)
 	X = X.unsqueeze(-1) # N,T,1
@@ -42,6 +58,7 @@ def gen_sin_data(data_path, params, flag, task='sin'):
 def gen_lv_data(data_path, params, flag, task='lv'):
 	N = params[task][flag]['N']
 	T = params[task][flag]['T'] 
+	noise = params[task]['noise']
 	if params[task]['clean']:
 		N_add = 200 #add aditional data samples as some might be discarded
 		N_old = N
@@ -76,7 +93,6 @@ def gen_lv_data(data_path, params, flag, task='lv'):
 	odef_ = lambda t,x: odef(t,x,alpha,params[task]['beta'],gamma,params[task]['delta'])
 
 	X0 = torch.tensor(np.random.uniform(low=1.0, high=5.0, size=(N,2))) 
-	X0 = X0 + 1*torch.rand_like(X0)
 	ts = torch.arange(T)*params[task]['dt']
 
 	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N, 2
@@ -88,7 +104,10 @@ def gen_lv_data(data_path, params, flag, task='lv'):
 		Xt = Xt[:,:N_old]  # T, N, 2
 
 	Xt = Xt.permute(1,0,2) #N,T,2
-	filename = 'data/lv/example_lv_clean' if params[task]['clean'] else 'data/lv/example_lv'
+	if noise > 0.0:
+		Xt = add_noise_lv(Xt, Xt.shape[1], noise)
+
+	filename = 'data/lv/example_lv'
 	plot_2d_origin(Xt,fname=filename + flag,N=10)
 	torch.save(Xt, data_path)
 

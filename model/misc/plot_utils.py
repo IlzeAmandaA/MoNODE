@@ -7,7 +7,9 @@ from pathlib import Path
 
 import matplotlib.colors as mcolors
 from model.misc import io_utils
-palette = list(mcolors.TABLEAU_COLORS.keys())
+palette = list(mcolors.CSS4_COLORS.keys())
+palette_tab = list(mcolors.TABLEAU_COLORS.keys())
+
 
 
 def plot_results(plotter, \
@@ -102,7 +104,7 @@ def plot_sin_gt(X, show=False, fname='predictions.png', N=None, D=None):
     fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False)
     for n in range(N):
         for d in range(D):
-            axes[n,d].plot([t for t in range(X.shape[1])], Xnp[n,:,d].T,'o', '', color='tab:blue')
+            axes[n,d].plot([t for t in range(X.shape[1])], Xnp[n,:,d].T,'o','', color="green", markersize=5, alpha=0.7)
     if show:
         plt.show()
     else:
@@ -126,8 +128,8 @@ def plot_sin(X, Xrec, show=False, fname='predictions.png', N=None, D=None):
     fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False)
     for n in range(N):
         for d in range(D):
-            axes[n,d].plot(Xrecnp[:,n,:,d].T, '-', color='tab:gray', lw=0.7, alpha=0.5)
-            axes[n,d].plot(Xnp[n,:,d].T, '-', color='tab:blue', lw=2)
+            axes[n,d].plot(Xrecnp[:,n,:,d].T, '-', color="darkblue", lw=1.2, alpha=0.9)
+            axes[n,d].plot([t for t in range(Xnp.shape[1])],Xnp[n,:,d].T, 'o','', color="green", markersize=5, alpha=0.7)
     if show:
         plt.show()
     else:
@@ -140,7 +142,7 @@ def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L
         X    - [N,T,d] 
         Xrec - [L,N,Ttest,d]
     '''
-    palette_t = palette[1:]
+    palette_t = palette_tab[1:]
     if N is None:
         N = min(X.shape[0],3)
     if D is None:
@@ -180,7 +182,7 @@ def plot_2d_origin(X, show=False, fname='predictions.png', D=None, N=None):
     Xnp    = X.detach().cpu().numpy()
     plt.figure(1,figsize=(9, 9))
     for n in range(N):
-        plt.plot(Xnp[n,:,0], Xnp[n,:,1], '*-', color=palette[n])
+        plt.plot(Xnp[n,:,0], Xnp[n,:,1], '*-', color=palette_tab[n])
 
     if show:
         plt.show()
@@ -251,8 +253,8 @@ def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust
     plt.figure(1,(5,5))
     for n in range(Nplot):
         for l in range(L):
-            plt.plot(Qpca[l,n,:,0], Qpca[l,n,:,1], '*-', markersize=2, lw=0.5, color=palette[n])
-            plt.plot(Qpca[l,n,0,0], Qpca[l,n,0,1], '*', markersize=15, color=palette[n])
+            plt.plot(Qpca[l,n,:,0], Qpca[l,n,:,1], '*-', markersize=2, lw=0.5, color=palette_tab[n])
+            plt.plot(Qpca[l,n,0,0], Qpca[l,n,0,1], '*', markersize=15, color=palette_tab[n])
     if q>2:
         plt.xlabel('PCA-1  ({:.2f})'.format(S[0]),fontsize=15)
         plt.ylabel('PCA-2  ({:.2f})'.format(S[1]),fontsize=15)

@@ -75,8 +75,10 @@ parser.add_argument('--T_in', type=int, default=10,
                     
 
 #training 
-parser.add_argument('--Nepoch', type=int, default=2500,
+parser.add_argument('--Nepoch', type=int, default=600,
                     help="Number of gradient steps for model training")
+parser.add_argument('--Nincr', type=int, default=10,
+                    help="Number of sequential increments of the sequence length")
 parser.add_argument('--batch_size', type=int, default=25,
                     help="batch size")
 parser.add_argument('--lr', type=float, default=0.002,
@@ -85,7 +87,7 @@ parser.add_argument('--seed', type=int, default=121,
                     help="Global seed for the training run")
 parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
-parser.add_argument('--plot_every', type=int, default=10,
+parser.add_argument('--plot_every', type=int, default=20,
                     help="How often plot the training")
 parser.add_argument('--plotL', type=int, default=1,
                     help="Number of MC draws for plotting")

@@ -138,45 +138,34 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     global_itr = 0
     best_valid_loss = None
     test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
+    #increase the data set length in N increments sequentally 
+    T = params['train']['T']
+    ep_inc_c = args.Nepoch // args.Nincr
+    ep_inc_v = T // args.Nincr
+    T_ = ep_inc_v
+
     for ep in range(args.Nepoch):
         if args.model == 'sonode':
             L=1
         else:
             L = 1 if ep<args.Nepoch//2 else 5 
+
+        if (ep != 0) and (ep % ep_inc_c == 0):
+            T_ += ep_inc_v
+
         for itr,local_batch in enumerate(trainset):
             tr_minibatch = local_batch.to(invodevae.device) # N,T,...
             if args.task=='sin' or args.task=='spiral' or args.task=='lv': #slowly increase sequence length
                 [N,T] = tr_minibatch.shape[:2]
 
-                if ep < args.Nepoch//2:
-                    if args.task =='sin':
-                        min_T = 5 
-                    elif args.task == 'lv':
-                        min_T = 10
-                    elif args.task == 'spiral':
-                        min_T = 20
-                #half way minimum seq len is half
-                elif ep >= args.Nepoch//2 and ep < int(args.Nepoch*0.75):
-                    min_T = T//2
-                else:
-                    min_T = int(T * 0.75)
-
-                if args.task == 'sin': #T is 50 keep sequence length short
-                    ep_inc = T //args.Nepoch + 10
-                    T_  = min(T, ep//ep_inc+min_T)
-                elif args.task == 'spiral': #T is 1000 increase seqence length more
-                    ep_inc = T // args.Nepoch + 1 
-                    T_ = min(T, ep//ep_inc+min_T)
-                elif args.task == 'lv': #T is 100
-                    ep_inc = T//args.Nepoch + 3
-                    T_ = min(T, ep//ep_inc+min_T)
-
+                N_  = int(N*(T//T_))
                 if T_ < T:
-                    N_  = int(N*(T//T_))
                     t0s = torch.randint(0,T-T_,[N_])  #select a random initial point from the sequence
-                    tr_minibatch = tr_minibatch.repeat([N_,1,1])
-                    tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
-            
+                else:
+                    t0s = torch.zeros([N_]).to(int)
+                tr_minibatch = tr_minibatch.repeat([N_,1,1])
+                tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
+                
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
                 compute_loss(invodevae, tr_minibatch, L, num_observations = params['train']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr)
 
