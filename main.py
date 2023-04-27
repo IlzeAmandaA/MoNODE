@@ -7,7 +7,7 @@ import torch.nn as nn
 from model.build_model import build_model
 from model.model_misc import train_model 
 from model.misc import io_utils
-from model.misc.torch_utils import seed_everything
+from model.misc.torch_utils import seed_everything, count_params
 from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
@@ -35,7 +35,7 @@ parser.add_argument('--ode_latent_dim', type=int, default=10,
                     help="Latent ODE dimensionality")
 parser.add_argument('--num_layers', type=int, default=2,
                     help="Number of hidden layers in MLP diff func")
-parser.add_argument('--num_hidden', type=int, default=200,
+parser.add_argument('--num_hidden', type=int, default=100,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 
@@ -85,7 +85,7 @@ parser.add_argument('--seed', type=int, default=121,
                     help="Global seed for the training run")
 parser.add_argument('--continue_training', type=eval, default=False,
                     help="If set to True continoues training of a previous model")
-parser.add_argument('--plot_every', type=int, default=100,
+parser.add_argument('--plot_every', type=int, default=10,
                     help="How often plot the training")
 parser.add_argument('--plotL', type=int, default=1,
                     help="Number of MC draws for plotting")
@@ -159,6 +159,7 @@ if __name__ == '__main__':
     invodevae.to(dtype)
 
     logger.info('********** Model Built {} with invariance {} and contrastive loss {} **********'.format(args.model, args.inv_latent_dim, args.contr_loss))
+    logger.info('********** Number of parameters: {} **********'.format(count_params(invodevae)))
     logger.info('********** Training Augemented Dynamics: {} **********'.format(invodevae.aug))
     for arg, value in sorted(vars(args).items()):
         logger.info("Argument %s: %r", arg, value)

@@ -4,6 +4,12 @@ import numpy as np
 import torch
 
 # utils
+
+def count_params(model):
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters]) 
+    return params
+
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)

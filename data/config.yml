@@ -1,12 +1,12 @@
 sin:
   train:
-    N: 80 #40 small
+    N: 300 
     T: 50
   valid:
-    N: 25 
+    N: 50
     T: 50
   test:
-    N: 25
+    N: 50
     T: 150
   dt: 0.1
   sig: 0.1
