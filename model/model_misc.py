@@ -78,7 +78,14 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
     #compute loss
     if model.model =='sonode':
         mse   = torch.mean((Xrec-in_data)**2)
-        return mse, 0.0, 0.0, 0.0, 0.0, 0.0, mse, 0.0
+
+        if contr_loss and model.is_inv:
+            contr_learn_loss = contrastive_loss(C)
+        else:
+            contr_learn_loss = torch.zeros_like(mse)
+
+        loss = mse + sc_beta * contr_learn_loss
+        return loss, 0.0, 0.0, 0.0, 0.0, 0.0, mse, contr_learn_loss
     
     elif model.model =='node':
         lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
@@ -104,22 +111,22 @@ def freeze_pars(par_list):
 
 
 def train_model(args, invodevae, plotter, trainset, validset, testset, logger, params, freeze_dyn=False):
+
     loss_meter  = log_utils.CachedRunningAverageMeter(0.97)
     vl_loss_meter  = log_utils.CachedRunningAverageMeter(0.97)
     time_meter = log_utils.CachedRunningAverageMeter(0.97)
+    tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
+    contr_meter = log_utils.CachedRunningAverageMeter(0.97)
+    vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
+
     if args.model == 'node':
-        inducing_kl_meter = log_utils.CachedRunningAverageMeter(0.97)
         nll_meter   = log_utils.CachedRunningAverageMeter(0.97)
         kl_z0_meter = log_utils.CachedRunningAverageMeter(0.97)
-        tr_mse_meter   = log_utils.CachedRunningAverageMeter(0.97)
-        contr_meter = log_utils.CachedRunningAverageMeter(0.97)
-        vl_mse_meter = log_utils.CachedRunningAverageMeter(0.97)
+        
+        
         
 
-    time_dict = {'euler':{'first':200,'second':600,'third':900}, 'rk4':{'first':250,'second':2700,'third':3300},'dopri5':{'first':2000,'second':10800,'third':14400}}
-    first,second,third = False, False, False
     logger.info('********** Started Training **********')
-
     if freeze_dyn:
         freeze_pars(invodevae.flow.parameters())
 
@@ -175,12 +182,11 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
             #store values 
             loss_meter.update(loss.item(), global_itr)
+            tr_mse_meter.update(tr_mse.item(), global_itr)
+            contr_meter.update(contr_learn_cost.item(), global_itr)
             if args.model == 'node':
                 nll_meter.update(nlhood.item(), global_itr)
                 kl_z0_meter.update(kl_z0.item(), global_itr)
-                tr_mse_meter.update(tr_mse.item(), global_itr)
-                contr_meter.update(contr_learn_cost.item(), global_itr)
-                inducing_kl_meter.update(kl_u.item(), global_itr)
             global_itr +=1
 
             val = datetime.now()-start_time
@@ -197,12 +203,10 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 valid_mses.append(valid_mse.item())
             valid_loss, valid_mse, valid_std = np.mean(np.array(valid_losses)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
 
-            if args.model == 'node':
-                logger.info('Epoch:{:4d}/{:4d} | tr_elbo:{:8.2f}({:8.2f}) | valid_elbo {:5.3f} | valid_mse:{:5.3f} | contr_loss:{:5.3f}({:5.3f})'.\
+
+            logger.info('Epoch:{:4d}/{:4d} | tr_loss:{:8.2f}({:8.2f}) | valid_loss {:5.3f} | valid_mse:{:5.3f} | contr_loss:{:5.3f}({:5.3f})'.\
                     format(ep, args.Nepoch, loss_meter.val, loss_meter.avg, valid_loss, valid_mse, contr_meter.val, contr_meter.avg)) 
-            elif args.model == 'sonode':
-                logger.info('Epoch:{:4d}/{:4d} | train mse:{:8.2f}({:8.2f}) | valid mse {:5.3f}({:5.3f}) '.\
-                    format(ep, args.Nepoch, loss_meter.val, loss_meter.avg, valid_loss, np.std(np.array(valid_losses))))
+
                 
             # update valid loggers
             vl_loss_meter.update(valid_loss,ep)
@@ -248,7 +252,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 elif args.model == 'sonode':
                     plot_results(plotter, \
                                 Xrec_tr.unsqueeze(0), tr_minibatch, Xrec_vl.unsqueeze(0), valid_batch,\
-                                {"plot":{"Loss-mse" : loss_meter, "validation-mse": vl_loss_meter}, "time" : time_meter, "iteration": ep})
+                                {"plot":{"Loss" : loss_meter, "validation-mse": vl_loss_meter}, "time" : time_meter, "iteration": ep})
 
 
     if args.model == 'node':

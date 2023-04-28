@@ -13,7 +13,7 @@ sin:
   
 lv:
   train:
-    N: 500
+    N: 600
     T: 100
   valid:
     N: 100
@@ -26,7 +26,7 @@ lv:
   delta: 0.2
   clean: True
   DIFF: 0.01
-  noise: 0.2
+  noise: 0.1
 
 rot_mnist:
   train:

@@ -12,14 +12,14 @@ python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 
 
 ############## LV ##############
 NODE
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1200 --contr_loss True
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1200
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --inv_latent_dim 0 --Nepoch 1200
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1500 --contr_loss True
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1500
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --inv_latent_dim 0 --Nepoch 1500
 
 SONODE # does not work yet (output dim should be 2)
-python main.py --task lv --model sonode --order 2  --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 600 --contr_loss True
-python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 600 
-python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 600 
+python main.py --task lv --model sonode --order 2  --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 1500 --contr_loss True
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 1500 
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 
 
 
 
