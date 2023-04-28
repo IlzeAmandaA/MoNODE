@@ -43,7 +43,7 @@ def gen_sin_data(data_path, params, flag, task='sin'):
 	plot = True if flag=='train' else False
 	phis = torch.rand(N,1) #
 	fs = torch.rand(N,1) * .5 + .5 # N,1, [0.5, 1.0]
-	A  = torch.rand(N,1) * 2 + 1   # N,1, [1.0, 3.0]
+	A  = torch.rand(N,1) * 3 + 1   # N,1, [1.0, 3.0]
 	ts = torch.arange(T) * params[task]['dt'] # T
 	ts = torch.stack([ts]*N)  # N,T
 	ts = (ts*fs+phis) * 2*np.pi # N,T

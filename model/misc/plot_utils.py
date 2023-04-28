@@ -99,15 +99,16 @@ def plot_sin_gt(X, show=False, fname='predictions.png', N=None, D=None):
     if D is None:
         D = min(X.shape[-1],3)
     Xnp    = X.detach().cpu().numpy()
-    print(Xnp.shape)
     nc,nr = D, N
-    fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False)
+    fig, axes = plt.subplots(nr, nc, figsize=(nc*10,nr*2), squeeze=False, sharex=True, sharey=True)
     for n in range(N):
         for d in range(D):
             axes[n,d].plot([t for t in range(X.shape[1])], Xnp[n,:,d].T,'o','', color="green", markersize=5, alpha=0.7)
     if show:
         plt.show()
     else:
+        plt.tight_layout()
+        # plt.ylim(-3.0,3.0)
         plt.savefig(fname)
         plt.close()
 
