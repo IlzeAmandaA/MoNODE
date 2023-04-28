@@ -112,23 +112,24 @@ class INVODEVAE(nn.Module):
 
         #encode content (invariance)
         if self.is_inv:
-            C = self.inv_enc(X, L=L) # embeddings [L,N,T,q] or [L,N,ns,q]
-            c = C.mean(2) # time-invariant code [L,N,q]
+            InvMatrix = self.inv_enc(X, L=L) # embeddings [L,N,T,q] or [L,N,ns,q]
+            inv_var = InvMatrix.mean(2) # time-invariant code [L,N,q]
+            c, m = inv_var[:,:,:self.inv_enc.content_dim], inv_var[:,:,self.inv_enc.content_dim:]
         else:
-            C,c = None, None
+            InvMatrix,c,m = None, None, None
 
         #sample trajectories
         if self.aug:
-            cL = c.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
-            ztL  = self.sample_augmented_trajectories(z0, cL, T, L) # L,N,T,Nobj, 2q
+            mL = m.reshape((L,N,self.Nobj,-1)) #L,N,Nobj,q
+            ztL  = self.sample_augmented_trajectories(z0, mL, T, L) # L,N,T,Nobj, 2q
             ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*2q
-            Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
-            if X.ndim==5:
-                Xrec = Xrec.reshape([L,N,T,*X.shape[2:]])
+            # Xrec = self.build_decoding(ztL, [L,N,T,-1]) 
+            # if X.ndim==5:
+            #     Xrec = Xrec.reshape([L,N,T,*X.shape[2:]])
         else:
-            #sample ODE trajectories 
             ztL  = self.sample_trajectories(z0,T,L) # L,T,N,nobj,q
             ztL = ztL.reshape(L,N,T,-1) # L,T,N, nobj*q
-            Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], c)
+        
+        Xrec = self.build_decoding(ztL, [L,N,T,*X.shape[2:]], c)
 
-        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C
+        return Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), InvMatrix

@@ -108,30 +108,29 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, T_in=10, device='cpu', order=1, cnn_arch='cnn'):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, content_dim=0, T_in=10, device='cpu', order=1):
         super(VAE, self).__init__()
 
         ### build encoder
         lhood_distribution = 'bernoulli'
-        if task in ['rot_mnist', 'rot_mnist_ou', 'mov_mnist']:
-            if task == 'rot_mnist' or task == 'rot_mnist_ou':
-                self.encoder = PositionEncoderCNN(task=task, out_distr='normal', enc_out_dim=ode_latent_dim//order, n_filt=n_filt, T_in=T_in).to(device)
-                self.decoder = Decoder(task, ode_latent_dim//order+inv_latent_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
-            elif task == 'mov_mnist':
-                self.encoder = encoder_factory('dcgan',nx=64, nc=1, nh=128, nf=n_filt, enc_out_dim=ode_latent_dim//order, T_in=T_in)
-                self.decoder = decoder_factory('dcgan',nx=64, nc=1, ny=ode_latent_dim//order+inv_latent_dim, nf=64, skip=None)
-            if order==2:
-                self.encoder_v = VelocityEncoderCNN(v_frames, task, 'normal', ode_latent_dim//order, n_filt).to(device)
-        
+        if task in ['rot_mnist', 'rot_mnist_ou']:
+            self.encoder = PositionEncoderCNN(task=task, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, T_in=T_in).to(device)
+            self.decoder = Decoder(task, ode_latent_dim+content_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
+            if order == 2:
+                self.encoder_v = VelocityEncoderCNN(v_frames, task, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, n_in_channels=1)
+
         elif task=='bb':
             self.encoder = EncoderRCNN(task=task, T_in=T_in, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, n_in_channels=1).to(device)
-            self.decoder = Decoder(task, ode_latent_dim//order, n_filt=n_filt, distribution=lhood_distribution).to(device)
+            self.decoder = Decoder(task, ode_latent_dim+content_dim, n_filt=n_filt, distribution=lhood_distribution).to(device)
+            if order == 2:
+                self.encoder_v = EncoderRCNN(task=task, T_in=T_in, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, n_in_channels=1).to(device)
 
         elif task in ['sin', 'lv']:
             lhood_distribution = 'normal'
             data_dim = 1 if task=='sin' else 2
             self.encoder = EncoderRNN(data_dim, Tin=T_in, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
+            self.decoder = Decoder(task, ode_latent_dim+content_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
+        
             if order==2:
                 self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 

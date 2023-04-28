@@ -2,8 +2,6 @@ import os
 from datetime import datetime
 import argparse
 import torch
-import torch.nn as nn
-
 from model.build_model import build_model
 from model.model_misc import train_model 
 from model.misc import io_utils
@@ -11,7 +9,7 @@ from model.misc.torch_utils import seed_everything, count_params
 from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
-TASKS     = ['rot_mnist', 'rot_mnist_ou',  'mov_mnist', 'sin', 'bb', 'lv']
+TASKS     = ['rot_mnist', 'rot_mnist_ou', 'sin', 'bb', 'lv']
 MODELS     = ['node', 'sonode']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 LV_TYPE = ['clean', 'all']
@@ -39,11 +37,13 @@ parser.add_argument('--num_hidden', type=int, default=100,
                     help="Number of hidden neurons in each layer of MLP diff func")
 
 
-#inavariance
+#invariance
 parser.add_argument('--inv_fnc', type=str, default='MLP',
                     help="Invariant function")
-parser.add_argument('--inv_latent_dim', type=int, default=16,
-                    help="Invariant space dimensionality")
+parser.add_argument('--modulator_dim', type=int, default=0,
+                    help = 'dim of the dynamics modulator variable')
+parser.add_argument('--content_dim', type=int, default=0,
+                    help = 'dim of the content variable')
 parser.add_argument('--T_inv', type=int, default=25,
                     help="Time frames to select for RNN based Encoder for Invariance")
 parser.add_argument('--contr_loss', type=eval, default=False,
@@ -95,7 +95,7 @@ parser.add_argument('--forecast_tr',type=int, default=2,
                     help="Number of forecast steps for plotting train")
 parser.add_argument('--forecast_vl',type=int, default=2,
                     help="Number of forecast steps for plotting test")
-parser.add_argument('--beta_contr',type=float, default=1.0, 
+parser.add_argument('--lambda_contr',type=float, default=1.0, 
                     help="Scaling factor for contrastive loss")
 
 #log 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     invodevae.to(device)
     invodevae.to(dtype)
 
-    logger.info('********** Model Built {} with invariance {} and contrastive loss {} **********'.format(args.model, args.inv_latent_dim, args.contr_loss))
+    logger.info('********** Model Built {} with dynamics modulator {}, content variable {} and contrastive loss {} **********'.format(args.model, args.modulator_dim, args.content_dim, args.contr_loss))
     logger.info('********** Number of parameters: {} **********'.format(count_params(invodevae)))
     logger.info('********** Training Augemented Dynamics: {} **********'.format(invodevae.aug))
     for arg, value in sorted(vars(args).items()):

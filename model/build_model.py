@@ -18,20 +18,15 @@ def build_model(args, device, dtype, params):
     """
 
     #differential function
-    aug = (args.task=='sin' or args.task=='spiral' or args.task=='lv' or args.task=='bb') and args.inv_latent_dim>0
+    aug = (args.task=='sin' or args.task=='lv' or args.task=='bb') and args.modulator_dim>0
     Nobj = 1
 
     if aug: # augmented dynamics
-        D_in  = args.ode_latent_dim + args.inv_latent_dim
+        D_in  = args.ode_latent_dim + args.modulator_dim
         D_out = int(args.ode_latent_dim / args.order)
     else:
-        if args.task == 'mov_mnist': #multiple objects with shared dynamics
-            Nobj = params[args.task]['ndigits']
-            D_in = args.ode_latent_dim// Nobj
-            D_out = args.ode_latent_dim// Nobj
-        else:
-            D_in  = args.ode_latent_dim
-            D_out = int(D_in / args.order)
+        D_in  = args.ode_latent_dim
+        D_out = int(D_in / args.order)
 
     # latent ode 
     if args.model == 'node':
@@ -44,19 +39,19 @@ def build_model(args, device, dtype, params):
 
     # encoder & decoder
     if args.model == 'node':
-        vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim, 
+        vae = VAE(task=args.task, v_frames=args.frames, n_filt=args.n_filt, ode_latent_dim=args.ode_latent_dim//args.order, 
             dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
-            inv_latent_dim=args.inv_latent_dim, T_in=args.T_in, order=args.order, device=device).to(dtype)
+            content_dim=args.content_dim, T_in=args.T_in, order=args.order, device=device).to(dtype)
     elif args.model == 'sonode':
         vae = SONODE_init_velocity(dim=args.ode_latent_dim//2, nhidden=20) #match to SONODE
 
     # time-invariant network
-    if args.inv_latent_dim>0:
+    if args.modulator_dim>0 or args.content_dim>0:
         if args.task == 'bb':
-            inv_enc = INV_ENC(task=args.task, inv_latent_dim=args.inv_latent_dim,
+            inv_enc = INV_ENC(task=args.task, modulator_dim=args.modulator_dim, content_dim = args.content_dim,
                 n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, vae_enc=vae.encoder, device=device).to(dtype)
         else:
-            inv_enc = INV_ENC(task=args.task, inv_latent_dim=args.inv_latent_dim,
+            inv_enc = INV_ENC(task=args.task, modulator_dim=args.modulator_dim, content_dim = args.content_dim,
                 n_filt=args.n_filt, rnn_hidden=10, T_inv=args.T_inv, vae_enc=None, device=device).to(dtype)
     else:
         inv_enc = None

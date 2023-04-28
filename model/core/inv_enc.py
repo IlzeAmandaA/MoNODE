@@ -3,15 +3,17 @@ import torch.nn as nn
 from model.core.vae import EncoderCNN, EncoderRNN
 
 class INV_ENC(nn.Module):
-    def __init__(self, task, vae_enc=None, n_filt=8, inv_latent_dim=10, rnn_hidden=10, T_inv=10, device='cpu'):
+    def __init__(self, task, vae_enc=None, n_filt=8, modulator_dim=0, content_dim=0, rnn_hidden=10, T_inv=10, device='cpu'):
         super(INV_ENC, self).__init__()
-        if task=='rot_mnist' or task=='rot_mnist_ou' or task=='mov_mnist':
-            self.inv_encoder = InvariantEncoderCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv).to(device)
+        self.modulator_dim = modulator_dim
+        self.content_dim = content_dim
+        if task=='rot_mnist' or task=='rot_mnist_ou':
+            self.inv_encoder = InvariantEncoderCNN(task=task, out_distr='dirac', enc_out_dim=modulator_dim+content_dim, n_filt=n_filt, T_inv=T_inv).to(device)
         if task=='bb':
-            self.inv_encoder = InvariantEncoderRCNN(task=task, out_distr='dirac', enc_out_dim=inv_latent_dim, n_filt=n_filt, T_inv=T_inv, vae_enc=vae_enc).to(device)
-        elif task=='sin' or task=='spiral' or task=='lv':
+            self.inv_encoder = InvariantEncoderRCNN(task=task, out_distr='dirac', enc_out_dim=modulator_dim+content_dim, n_filt=n_filt, T_inv=T_inv, vae_enc=vae_enc).to(device)
+        elif task=='sin' or task=='lv':
             data_dim = 1 if task=='sin' else 2 
-            self.inv_encoder = InvariantEncoderRNN(data_dim, T_inv=T_inv, rnn_hidden=rnn_hidden, enc_out_dim=inv_latent_dim, out_distr='dirac').to(device)
+            self.inv_encoder = InvariantEncoderRNN(data_dim, T_inv=T_inv, rnn_hidden=rnn_hidden, enc_out_dim=modulator_dim+content_dim, out_distr='dirac').to(device)
 
     def kl(self):
         return torch.zeros(1) * 0.0
@@ -56,7 +58,6 @@ class InvariantEncoderCNN(EncoderCNN):
         index = torch.arange(N).repeat(T_inv, 1).to(X.device) # T_inv,N
         X     = X[index.view(-1),t.view(-1)].view(T_inv * N, nc, d, d)         
         X_out = super().forward(X) # N*T,_
-        # return X_out.reshape(N,T_inv,self.enc_out_dim)
         return X_out.reshape(T_inv,N,self.enc_out_dim).permute(1,0,2)
 
 class InvariantEncoderRNN(EncoderRNN):

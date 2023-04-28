@@ -56,7 +56,7 @@ def contrastive_loss(C):
     return -pos
 
 
-def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=None, sc_beta=1.0):
+def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=None, sc_lambda=1.0):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -84,7 +84,7 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
         else:
             contr_learn_loss = torch.zeros_like(mse)
 
-        loss = mse + sc_beta * contr_learn_loss
+        loss = mse + sc_lambda * contr_learn_loss
         return loss, 0.0, 0.0, 0.0, 0.0, 0.0, mse, contr_learn_loss
     
     elif model.model =='node':
@@ -96,7 +96,7 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
             
         lhood = lhood * num_observations
         kl_z0 = kl_z0 * num_observations
-        loss  = - lhood + kl_z0 + kl_gp + sc_beta*contr_learn_loss
+        loss  = - lhood + kl_z0 + kl_gp + sc_lambda*contr_learn_loss
         mse   = torch.mean((Xrec-in_data)**2)
         return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
 
@@ -174,7 +174,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 tr_minibatch = torch.stack([tr_minibatch[n,t0:t0+T_] for n,t0 in enumerate(t0s)]) # N*ns,T//2,d
                 
             loss, nlhood, kl_z0, kl_u, Xrec_tr, ztL_tr, tr_mse, contr_learn_cost = \
-                compute_loss(invodevae, tr_minibatch, L, num_observations = params['train']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr)
+                compute_loss(invodevae, tr_minibatch, L, num_observations = params['train']['N'], contr_loss=args.contr_loss, sc_lambda=args.lambda_contr)
 
             optimizer.zero_grad()
             loss.backward() 
@@ -198,7 +198,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             for itr_test,valid_batch in enumerate(validset):
 
                 valid_batch = valid_batch.to(invodevae.device)
-                loss, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_beta=args.beta_contr) #, T_valid=valid_batch.shape[1]//2)
+                loss, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_lambda=args.lambda_contr) #, T_valid=valid_batch.shape[1]//2)
                 valid_losses.append(loss.item())
                 valid_mses.append(valid_mse.item())
             valid_loss, valid_mse, valid_std = np.mean(np.array(valid_losses)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
@@ -231,7 +231,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
-                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, num_observations=params['test']['N'], contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_beta=args.beta_contr) 
+                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, num_observations=params['test']['N'], contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_lambda=args.lambda_contr)
                     test_elbos.append(test_elbo.item())
                     test_mses.append(test_mse.item())
                 test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))

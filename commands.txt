@@ -1,44 +1,39 @@
 Commands for experiments:
 ####### SIN ##########
 NODE
-python main.py --task sin --model node  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 600 --contr_loss True
-python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 600
-python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 8 --inv_latent_dim 0 --Nepoch 600
+python main.py --task sin --model node  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --modulator_dim 4 --Nepoch 600 --contr_loss True
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --modulator_dim 4 --Nepoch 600
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 8 --modulator_dim 0 --Nepoch 600
 
 SONODE 
-python main.py --task sin --model sonode --order 2  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 600 --contr_loss True
-python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 600 
-python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 2 --inv_latent_dim 0 --Nepoch 600 
+python main.py --task sin --model sonode --order 2  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --modulator_dim 4 --Nepoch 600 --contr_loss True --lambda_contr 0.005 
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --modulator_dim 4 --Nepoch 600 
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 2 --modulator_dim 0 --Nepoch 600 
 
 ############## LV ##############
 NODE
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1500 --contr_loss True
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1500
-python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --inv_latent_dim 0 --Nepoch 1500
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --modulator_dim 8 --Nepoch 1500 --contr_loss True
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --modulator_dim 8 --Nepoch 1500
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --modulator_dim 0 --Nepoch 1500
 
 SONODE # does not work yet (output dim should be 2)
-python main.py --task lv --model sonode --order 2  --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 1500 --contr_loss True
-python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 1500 
-python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 1500 
+python main.py --task lv --model sonode --order 2  --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --modulator_dim 8 --Nepoch 1500 --contr_loss True
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --modulator_dim 8 --Nepoch 1500 
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 4 --modulator_dim 0 --Nepoch 1500 
 
 
 
 ############## ROT MNIST ##################
-python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 
-python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 --contr_loss False
-python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 5 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
+python main.py --task rot_mnist --model node --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --content_dim 16 --Nepoch 1000 --contr_loss True
+python main.py --task rot_mnist --model node --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --content_dim 16 --Nepoch 1000 
+python main.py --task rot_mnist --model node --solver dopri5 --lr 0.001 --batch_size 20 --T_in 5 --T_inv 16 --ode_latent_dim 10 --content_dim 0 --Nepoch 1000 
 
 ############## ROT MNIST_OU ##################
-python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1500 
-python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1500 --contr_loss False
-python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 1500 --contr_loss False
-
-############# MOVING MNIST ######################
-python main.py --task mov_mnist --solver dopri5 --batch_size 25 --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000
-python main.py --task mov_mnist --solver dopri5 --batch_size 25 --T_in 5 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 2000 --contr_loss False
-python main.py --task mov_mnist --solver dopri5 --batch_size 25 --T_in 10 --T_inv 15 --ode_latent_dim 10 --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --content_dim 16 --modulator_dim 8 --Nepoch 1500 --contr_loss True
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --content_dim 16 --modulator_dim 8 --Nepoch 1500 
+python main.py --task rot_mnist_ou --solver euler --lr 0.001 --batch_size 20 --T_in 8 --T_inv 8 --ode_latent_dim 10 --content_dim 0 --modulator_dim 0 --Nepoch 1500 
 
 ############# BOUNCING BALLS #################
-python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 10 --inv_latent_dim 2  --Nepoch 2500
-python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 10 --inv_latent_dim 2  --Nepoch 2500 --contr_loss False
-python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 12 --inv_latent_dim 0 --Nepoch 2500 --contr_loss False
+python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 10 --modulator_dim 2 --content_dim 16  --Nepoch 2500 --contr_loss True
+python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 10 --modulator_dim 2 --content_dim 16 --Nepoch 2500 
+python main.py --task bb --solver dopri5 --lr 0.001 --batch_size 25 --T_inv 10 --T_in 10 --n_filt 16 --ode_latent_dim 12 --modulator_dim 0 --content_dim 0 --Nepoch 2500 
