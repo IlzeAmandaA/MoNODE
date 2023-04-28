@@ -38,11 +38,7 @@ def __load_data(args, device, dtype, dataset=None):
 			print(exc)
 
 	#adjust name if specifc configuration
-	if dataset == 'lv' and params[dataset]['clean']:
-		data_path_tr = _adjust_name(data_path_tr, '.pkl', 'clean')
-		data_path_vl = _adjust_name(data_path_vl, '.pkl', 'clean')
-		data_path_te = _adjust_name(data_path_te, '.pkl', 'clean')
-	elif dataset == 'bb':
+	if dataset == 'bb':
 		data_path_tr = _adjust_name(data_path_tr, '.pkl', str(params[dataset]['nballs']))
 		data_path_vl = _adjust_name(data_path_vl, '.pkl', str(params[dataset]['nballs']))
 		data_path_te = _adjust_name(data_path_te, '.pkl', str(params[dataset]['nballs']))
