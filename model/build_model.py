@@ -48,7 +48,7 @@ def build_model(args, device, dtype, params):
             dec_act=args.dec_act, rnn_hidden=args.rnn_hidden, H=args.decoder_H, 
             inv_latent_dim=args.inv_latent_dim, T_in=args.T_in, order=args.order, device=device).to(dtype)
     elif args.model == 'sonode':
-        vae = SONODE_init_velocity(dim=1, nhidden=20) #match to SONDOE
+        vae = SONODE_init_velocity(dim=args.ode_latent_dim//2, nhidden=20) #match to SONODE
 
     # time-invariant network
     if args.inv_latent_dim>0:

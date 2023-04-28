@@ -38,10 +38,10 @@ class INVODEVAE(nn.Module):
         @param c: invariant code (L,N,q)
         @return Xrec: reconstructed in original data space (L,N,T,nc,d,d)
         """
+
         if self.model =='sonode':
-            
-            Xrec =  ztL[:,:,:,0].mean(0) #Only position is used for reconstructions, N, T, 1
-            return Xrec.unsqueeze(-1) 
+            Xrec =  ztL[:,:,:,:ztL.shape[-1]//2].mean(0) #Only position is used for reconstructions, N, T, 1
+            return Xrec 
         
         elif self.model == 'node':
             if self.order == 1:
@@ -107,7 +107,7 @@ class INVODEVAE(nn.Module):
         elif self.model =='sonode':
             #compute velocity and concatenate to position
             s0_mu, s0_logv,v0_mu, v0_logv = None, None, None, None
-            z0 = self.vae(X[:,0]).reshape(1,N,self.Nobj,2) #corresponds to line 131 in sonode code, (L,N,Nobj,2)
+            z0 = self.vae(X[:,0]).reshape(1,N,self.Nobj,X.shape[-1]*2) #corresponds to line 131 in sonode code, (L,N,Nobj,sv)
 
 
         #encode content (invariance)

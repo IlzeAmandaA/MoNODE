@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from torchdiffeq import odeint
 from data.mnist import MovingMNIST, RotatingMNIST
-from model.misc.plot_utils import plot_mnist, plot_sin_gt, plot_2d_origin, plot_bb, plot_bb_V
+from model.misc.plot_utils import plot_mnist, plot_sin_gt, plot_2d_gt, plot_bb, plot_bb_V
 from data.bb import BouncingBallsSim
 
 def add_noise(traj_list, time_steps, noise_weight):
@@ -108,7 +108,7 @@ def gen_lv_data(data_path, params, flag, task='lv'):
 		Xt = add_noise_lv(Xt, Xt.shape[1], noise)
 
 	filename = 'data/lv/example_lv'
-	plot_2d_origin(Xt,fname=filename + flag,N=10)
+	plot_2d_gt(Xt,fname=filename + flag,N=10)
 	torch.save(Xt, data_path)
 
 def gen_rmnist_data(data_path, params, flag, task='rot_mnist'):

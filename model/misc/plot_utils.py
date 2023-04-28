@@ -155,9 +155,9 @@ def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L
     nidx = 0
     for n in range(N):
         for c in range(C):
-            axs[n,c].plot(Xnp[nidx,:,0], Xnp[nidx,:,1], '-', color='tab:blue')
+            axs[n,c].plot(Xnp[nidx,:,0], Xnp[nidx,:,1], 'o','', color="green", markersize=5, alpha=0.7)
             for l in range(L):
-                axs[n,c].plot(Xrecnp[l,nidx,:,0],Xrecnp[l,nidx,:,1], '--', color=palette_t[l])
+                axs[n,c].plot(Xrecnp[l,nidx,:,0],Xrecnp[l,nidx,:,1], '-', color="darkblue", lw=1.2, alpha=0.8)
             nidx +=1
     
     for ax in axs.flat:
@@ -168,7 +168,7 @@ def plot_2d(X, Xrec, show=False, fname='predictions.png', N=None, D=None, C=2, L
         plt.savefig(fname)
         plt.close()
 
-def plot_2d_origin(X, show=False, fname='predictions.png', D=None, N=None):
+def plot_2d_gt(X, show=False, fname='predictions.png', D=None, N=None):
     ''' 
         For spiral and lv dataset (d=2)
         X    - [N,T,d] 

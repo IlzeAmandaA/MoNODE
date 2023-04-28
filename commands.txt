@@ -1,21 +1,27 @@
 Commands for experiments:
 ####### SIN ##########
 NODE
-python main.py --task sin --model node  --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000
-python main.py --task sin --model node --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 1000 --contr_loss False
-python main.py --task sin --model node --solver dopri5 --batch_size 10 --T_in 10 --T_inv 10 --ode_latent_dim 8 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
+python main.py --task sin --model node  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 600 --contr_loss True
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --inv_latent_dim 4 --Nepoch 600
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 8 --inv_latent_dim 0 --Nepoch 600
 
 SONODE 
-python main.py --task sin --model sonode --order 2  --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 1000
-python main.py --task sin --model sonode --order 2 --solver dopri5 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 1000 --contr_loss False
-python main.py --task sin --model sonode --order 2 --solver dopri5 --batch_size 10 --T_in 10 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 0 --Nepoch 1000 --contr_loss False
-
-
+python main.py --task sin --model sonode --order 2  --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 600 --contr_loss True
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 2 --inv_latent_dim 4 --Nepoch 600 
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 2 --inv_latent_dim 0 --Nepoch 600 
 
 ############## LV ##############
-python main.py --task lv --solver dopri5 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000
-python main.py --task lv --solver dopri5 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 2000 --contr_loss False
-python main.py --task lv --solver dopri5 --batch_size 20 --T_in 40 --T_inv 20  --ode_latent_dim 8  --inv_latent_dim 0 --Nepoch 2000 --contr_loss False
+NODE
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1200 --contr_loss True
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --inv_latent_dim 8 --Nepoch 1200
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --inv_latent_dim 0 --Nepoch 1200
+
+SONODE # does not work yet (output dim should be 2)
+python main.py --task lv --model sonode --order 2  --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 600 --contr_loss True
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 8 --T_inv 40 --ode_latent_dim 4 --inv_latent_dim 8 --Nepoch 600 
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 4 --inv_latent_dim 0 --Nepoch 600 
+
+
 
 ############## ROT MNIST ##################
 python main.py --task rot_mnist --solver dopri5 --lr 0.001 --batch_size 20 --T_in 1 --T_inv 16 --ode_latent_dim 10 --inv_latent_dim 16 --Nepoch 1000 
