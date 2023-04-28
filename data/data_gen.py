@@ -59,13 +59,13 @@ def gen_lv_data(data_path, params, flag, task='lv'):
 	N = params[task][flag]['N']
 	T = params[task][flag]['T'] 
 	noise = params[task]['noise']
-	if params[task]['clean']:
-		N_add = 200 #add aditional data samples as some might be discarded
-		N_old = N
-		N += N_add
 
-	alpha = torch.rand([N,1]) / .3 + .1
-	gamma = torch.rand([N,1]) / .3 + .1
+	alpha = torch.rand([N,1]) / .4 + params[task]['alpha']
+	gamma = torch.rand([N,1]) / .4 + params[task]['gamma']
+
+	delta = torch.rand([N,1]) * 0.1  + params[task]['delta']
+	beta = torch.rand([N,1]) * 0.1  + params[task]['beta']
+
 
 	def odef(t,state,alpha,beta,gamma,delta):
 		x,y = state.split([1,1],dim=-1) # M,1 & M,1
@@ -73,35 +73,13 @@ def gen_lv_data(data_path, params, flag, task='lv'):
 		dy = delta*x*y - gamma*y  # M,1
 		return torch.cat([dx,dy],-1)
 	
-	def _check_valid(x0, xt, N, T, DIFF):
-		valid_samples = []
-		invalid_samples = []
-		for i in range(N):
-			initial = x0[i]
-			for m in range(T):
-				if m != 0: #the initial will always be the same
-					frame = xt[m,i]
-					for x in torch.abs(frame - initial): #should pass close to the origin dynamics 
-						if x< DIFF:
-							if i not in valid_samples:
-								valid_samples.append(i)
-								
-			if i not in valid_samples:
-				invalid_samples.append(i)
-		return valid_samples, invalid_samples
 
-	odef_ = lambda t,x: odef(t,x,alpha,params[task]['beta'],gamma,params[task]['delta'])
+	odef_ = lambda t,x: odef(t,x,alpha,beta,gamma,delta)
 
 	X0 = torch.tensor(np.random.uniform(low=1.0, high=5.0, size=(N,2))) 
 	ts = torch.arange(T)*params[task]['dt']
 
-	Xt = odeint(odef_, X0, ts, method='dopri5') # T,N, 2
-	
-	if params[task]['clean']:
-		valid_s, invalid_s = _check_valid(X0,Xt, N, T, params[task]['DIFF'])
-		#disregard invalid samples (trajectory incomplete)
-		Xt  = Xt[:,valid_s] # T, N, 2
-		Xt = Xt[:,:N_old]  # T, N, 2
+	Xt = odeint(odef_, X0, ts, method=params[task]['solver']) # T,N, 2
 
 	Xt = Xt.permute(1,0,2) #N,T,2
 	if noise > 0.0:
