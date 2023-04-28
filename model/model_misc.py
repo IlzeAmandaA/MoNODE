@@ -211,9 +211,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             # update valid loggers
             vl_loss_meter.update(valid_loss,ep)
             time_meter.update(val.seconds, ep)
-            if args.model == 'node':
-                vl_mse_meter.update(valid_mse, ep, valid_std) 
-                
+            vl_mse_meter.update(valid_mse, ep, valid_std) 
+
+                                
             #compare validation error seen so far
             if best_valid_loss is None:
                 best_valid_loss = valid_mse
@@ -256,11 +256,11 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
 
     if args.model == 'node':
-        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {:8.2f} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
                     format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
     elif args.model == 'sonode':
-        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_mse: {} | valid_mse: {:8.2f} '.\
-                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val))
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_loss: {:8.2f} | train_mse  {:5.3f}  | valid_mse: {:5.3f} | test_mse {:5.3f}({:5.3f})'.\
+                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, tr_mse_meter.avg, vl_mse_meter.val, test_mse, test_std))
         
 
     torch.save({
