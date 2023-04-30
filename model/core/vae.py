@@ -108,17 +108,13 @@ class VAE(nn.Module):
             self.encoder = EncoderRCNN(task=task, T_in=T_in, out_distr='normal', enc_out_dim=ode_latent_dim, n_filt=n_filt, n_in_channels=1).to(device)
             self.decoder = Decoder(task, ode_latent_dim//order, n_filt=n_filt, distribution=lhood_distribution).to(device)
 
-        elif task in ['sin', 'lv', 'mocap', 'mocap_shift', 'cartpole']:
+        elif task in ['sin', 'lv']:
             lhood_distribution = 'normal'
             dec_in_dim = ode_latent_dim + aug_dec*inv_latent_dim
             if task=='sin':
                 data_dim = 1
             elif task=='lv':
                 data_dim = 2
-            elif 'mocap' in task:
-                data_dim = 50
-            elif task=='cartpole':
-                data_dim = 5
             if rnn_hidden==-1:
                 self.encoder = IdentityEncoder()
                 self.decoder = IdentityDecoder(data_dim)
@@ -321,7 +317,7 @@ class Decoder(nn.Module):
             self.net = build_mov_mnist_cnn_dec(n_filt, dec_inp_dim)
         elif task=='bb':
             self.net = build_rot_mnist_cnn_dec(n_filt, dec_inp_dim)
-        elif task=='sin' or task=='spiral' or task=='lv' or task=='mocap' or task=='mocap_shift' or task=='cartpole':
+        elif task=='sin' or task=='spiral' or task=='lv':
             self.net = MLP(dec_inp_dim, dec_out_dim, L=2, H=H, act=act)
             self.out_logsig = torch.nn.Parameter(torch.zeros(dec_out_dim)*0.0)
             self.sp = nn.Softplus()
