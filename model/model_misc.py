@@ -55,8 +55,21 @@ def contrastive_loss(C):
     pos = Z[idxset0,idxset1].sum()
     return -pos
 
+def compute_mse(model, data, T_train, L=1):
+    T_max = 0
+    T = data.shape[1]
+    #run model    
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(data, L, T)
+    
+    dict_mse = {}
+    while T_max < T:
+        T_max += T_train
+        mse = torch.mean((Xrec[:,:,:T_max]-data[:,:T_max])**2)
+        dict_mse[str(T_max)] = mse 
+    return dict_mse 
 
-def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=None, sc_lambda=1.0):
+
+def compute_loss(model, data, L, num_observations, contr_loss=False, sc_lambda=1.0):
     """
     Compute loss for optimization
     @param model: a odegpvae objectb 
@@ -66,18 +79,13 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
     @return: loss, nll, regularizing_kl, inducing_kl
     """
     T = data.shape[1]
-    if T_valid != None:
-        in_data = data[:,:T_valid]
-        T= T_valid
-    else:
-        in_data = data 
 
     #run model    
-    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(in_data, L, T_custom=T)
+    Xrec, ztL, (s0_mu, s0_logv), (v0_mu, v0_logv), C = model(data, L, T_custom=T)
 
     #compute loss
     if model.model =='sonode':
-        mse   = torch.mean((Xrec-in_data)**2)
+        mse   = torch.mean((Xrec-data)**2)
 
         if contr_loss and model.is_inv:
             contr_learn_loss = contrastive_loss(C)
@@ -88,7 +96,7 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
         return loss, 0.0, 0.0, 0.0, 0.0, 0.0, mse, contr_learn_loss
     
     elif model.model =='node':
-        lhood, kl_z0, kl_gp = elbo(model, in_data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
+        lhood, kl_z0, kl_gp = elbo(model, data, Xrec, s0_mu, s0_logv, v0_mu, v0_logv,L)
         if contr_loss and model.is_inv:
             contr_learn_loss = contrastive_loss(C)
         else:
@@ -97,7 +105,7 @@ def compute_loss(model, data, L, num_observations, contr_loss=False, T_valid=Non
         lhood = lhood * num_observations
         kl_z0 = kl_z0 * num_observations
         loss  = - lhood + kl_z0 + kl_gp + sc_lambda*contr_learn_loss
-        mse   = torch.mean((Xrec-in_data)**2)
+        mse   = torch.mean((Xrec-data)**2)
         return loss, -lhood, kl_z0, kl_gp, Xrec, ztL, mse, contr_learn_loss
 
 
@@ -146,9 +154,9 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
     best_valid_loss = None
     test_elbo, test_mse, test_std = 0.0, 0.0, 0.0
     #increase the data set length in N increments sequentally 
-    T = params['train']['T']
+    T_train = params['train']['T']
     ep_inc_c = args.Nepoch // args.Nincr
-    ep_inc_v = T // args.Nincr
+    ep_inc_v = T_train // args.Nincr
     T_ = ep_inc_v
 
     for ep in range(args.Nepoch):
@@ -198,7 +206,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
             for itr_test,valid_batch in enumerate(validset):
 
                 valid_batch = valid_batch.to(invodevae.device)
-                loss, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_lambda=args.lambda_contr) #, T_valid=valid_batch.shape[1]//2)
+                loss, _, _, _, _, _, valid_mse, _ = compute_loss(invodevae, valid_batch, L=1, num_observations = params['valid']['N'], contr_loss=args.contr_loss, sc_lambda=args.lambda_contr) 
                 valid_losses.append(loss.item())
                 valid_mses.append(valid_mse.item())
             valid_loss, valid_mse, valid_std = np.mean(np.array(valid_losses)),np.mean(np.array(valid_mses)),np.std(np.array(valid_mses))
@@ -227,17 +235,22 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 }, os.path.join(args.save, 'invodevae.pth'))
                             
                 #compute test error for this model 
-                test_elbos,test_mses = [],[]
-
+                dict_mses = {}
+                test_mse = {}
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
-                    test_elbo, _, _, _, _, _, test_mse, _ = compute_loss(invodevae, test_batch, L=1, num_observations=params['test']['N'], contr_loss=args.contr_loss, T_valid=valid_batch.shape[1], sc_lambda=args.lambda_contr)
-                    test_elbos.append(test_elbo.item())
-                    test_mses.append(test_mse.item())
-                test_elbo, test_mse, test_std = np.mean(np.array(test_elbos)),np.mean(np.array(test_mses)), np.std(np.array(test_mses))
+                    dict_mse = compute_mse(invodevae, test_batch, T_train)
+                    for key,item in dict_mse.items():
+                        if key not in dict_mses:
+                            dict_mses[key] = []
+                        dict_mses[key].append(item)
+                for key in dict_mses:
+                    test_mse[key] = (np.mean(dict_mses[key]), np.std(dict_mses[key]))
+
                 logger.info('********** Current Best Model based on validation error ***********')
-                logger.info('Epoch:{:4d}/{:4d} | test_elbo:{:8.2f} | test_mse {:5.3f}({:5.3f}) '.\
-                format(ep, args.Nepoch, test_elbo, test_mse, test_std)) 
+                logger.info('Epoch:{:4d}/{:4d}'.format(ep, args.Nepoch))
+                for key, item in test_mse.items():
+                    logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, item[0], item[1]))
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
@@ -256,12 +269,14 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
 
 
     if args.model == 'node':
-        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {:8.2f} | valid_elbo: {:8.2f}| valid_mse: {:5.3f} | test_elbo: {:8.2f} | test_mse: {:5.3f}({:5.3f}) '.\
-                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val, vl_mse_meter.val, test_elbo, test_mse, test_std)) 
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_elbo: {:8.2f} | valid_elbo: {:8.2f}| valid_mse: {:5.3f})'.\
+                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, vl_loss_meter.val, vl_mse_meter.val))
     elif args.model == 'sonode':
-        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_loss: {:8.2f} | train_mse  {:5.3f}  | valid_mse: {:5.3f} | test_mse {:5.3f}({:5.3f})'.\
-                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, tr_mse_meter.avg, vl_mse_meter.val, test_mse, test_std))
-        
+        logger.info('Epoch:{:4d}/{:4d} | time: {} | train_loss: {:8.2f} | train_mse  {:5.3f}  | valid_mse: {:5.3f}'.\
+                    format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, tr_mse_meter.avg, vl_mse_meter.val))
+    
+    for key, item in test_mse.items():
+        logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, item[0], item[1]))
 
     torch.save({
 		'args': args,

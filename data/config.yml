@@ -38,7 +38,7 @@ rot_mnist:
     T: 16
   test:
     N: 60
-    T: 16
+    T: 32
   digit: 3
 
 rot_mnist_ou:
