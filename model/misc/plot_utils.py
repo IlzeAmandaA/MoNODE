@@ -243,7 +243,10 @@ def plot_bb_V(V, N=3,fname=None):
 
 def plot_latent_traj(Q, Nplot=10, show=False, fname='latents.png'): #TODO adjust for 2nd ordder (dont think it is right atm)
     [L,N,T,q] = Q.shape 
-    if q>2:
+    if q==1:
+        print('skipping the latent plot as q=1')
+        return
+    elif q>2:
         Q = Q.reshape(L*N*T,q)
         U,S,V = torch.pca_lowrank(Q, q=min(q,10))
         Qpca = Q @ V[:,:2] 

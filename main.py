@@ -10,7 +10,7 @@ from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
 TASKS     = ['rot_mnist', 'rot_mnist_ou', 'sin', 'bb', 'lv']
-MODELS     = ['node', 'sonode']
+MODELS     = ['node', 'sonode', 'hbnode']
 CNN_ARCHITECTURE = ['cnn', 'dcgan', 'vgg64']
 LV_TYPE = ['clean', 'all']
 GRADIENT_ESTIMATION = ['no_adjoint', 'adjoint', 'ac_adjoint']
@@ -98,7 +98,7 @@ parser.add_argument('--forecast_vl',type=int, default=2,
 parser.add_argument('--lambda_contr',type=float, default=1.0, 
                     help="Scaling factor for contrastive loss")
 
-#log 
+#log s
 parser.add_argument('--save', type=str, default='results/',
                     help="Directory name for saving all the model outputs")
 

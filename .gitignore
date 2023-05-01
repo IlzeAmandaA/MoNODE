@@ -1,5 +1,7 @@
 results/*
 data/MNIST
+data/mocap/*
+figs/*
 *.DS_Store
 .DS_Store
 .vscode/*
