@@ -88,7 +88,8 @@ def build_mov_mnist_cnn_dec(n_filt, n_in):
 
 
 class VAE(nn.Module):
-    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, inv_latent_dim=0, T_in=10, device='cpu', order=1, cnn_arch='cnn'):
+    def __init__(self, task, v_frames=1, n_filt=8, H=100, rnn_hidden=10, dec_act='relu', ode_latent_dim=8, \
+                 inv_latent_dim=0, T_in=10, device='cpu', order=1, aug_dec=False, cnn_arch='cnn'):
         super(VAE, self).__init__()
 
         ### build encoder
@@ -109,14 +110,23 @@ class VAE(nn.Module):
 
         elif task in ['sin', 'lv']:
             lhood_distribution = 'normal'
-            data_dim = 1 if task=='sin' else 2
-            self.encoder = EncoderRNN(data_dim, Tin=T_in, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
-            self.decoder = Decoder(task, ode_latent_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
-            if order==2:
-                self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+            dec_in_dim = ode_latent_dim + aug_dec*inv_latent_dim
+            if task=='sin':
+                data_dim = 1
+            elif task=='lv':
+                data_dim = 2
+            if rnn_hidden==-1:
+                self.encoder = IdentityEncoder()
+                self.decoder = IdentityDecoder(data_dim)
+                if order==2:
+                    self.encoder_v = IdentityEncoder()
+            else:
+                self.encoder = EncoderRNN(data_dim, Tin=T_in, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
+                self.decoder = Decoder(task, dec_in_dim, H=H, distribution=lhood_distribution, dec_out_dim=data_dim, act=dec_act).to(device)
+                if order==2:
+                    self.encoder_v = EncoderRNN(data_dim, rnn_hidden=rnn_hidden, enc_out_dim=ode_latent_dim, out_distr='normal').to(device)
 
         self.prior = Normal(torch.zeros(ode_latent_dim).to(device), torch.ones(ode_latent_dim).to(device))
-        
         self.ode_latent_dim = ode_latent_dim
         self.order = order
 
@@ -268,6 +278,34 @@ class EncoderRNN(AbstractEncoder):
             z0_log_sig = self.sp(z0_log_sig)
             return z0_mu, z0_log_sig
         return outputs
+
+class IdentityEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+    def sample(self, mu, std, L=1):
+        return torch.stack([mu]*L) if L>1 else mu
+    def q_dist(self, mu_s, std_s, mu_v=None, std_v=None):
+        return Normal(mu_s, torch.ones_like(mu_s)) #N,q
+    def __call__(self,x):
+        return x[:,0], None
+    def __repr__(self) -> str:
+        return 'Identity encoder'
+    
+class IdentityDecoder(nn.Module):
+    def __init__(self,data_dim):
+        super().__init__()
+        self.data_dim = data_dim
+    def __call__(self,z,dims):
+        return z[...,:self.data_dim]
+    def log_prob(self,X,Xhat,L=1):
+        XL = X.repeat([L]+[1]*X.ndim) # L,N,T,nc,d,d or L,N,T,d
+        assert XL.numel()==Xhat.numel()
+        Xhat = Xhat.reshape(XL.shape)
+        return torch.distributions.Normal(XL,torch.ones_like(XL)).log_prob(Xhat)
+    def __repr__(self) -> str:
+        return 'Identity decoder'
+
 
 class Decoder(nn.Module):
     def __init__(self, task, dec_inp_dim, n_filt=8, H=100, distribution='bernoulli', dec_out_dim=None, act='relu'):
