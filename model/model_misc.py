@@ -56,6 +56,7 @@ def contrastive_loss(C):
     return -pos
 
 def compute_mse(model, data, T_train, L=1):
+
     T_max = 0
     T = data.shape[1]
     #run model    
@@ -264,7 +265,7 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 
                 elif args.model == 'sonode':
                     plot_results(plotter, \
-                                Xrec_tr.unsqueeze(0), tr_minibatch, Xrec_vl.unsqueeze(0), valid_batch,\
+                                Xrec_tr, tr_minibatch, Xrec_vl, valid_batch,\
                                 {"plot":{"Loss" : loss_meter, "validation-mse": vl_loss_meter}, "time" : time_meter, "iteration": ep})
 
 

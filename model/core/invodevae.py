@@ -40,7 +40,7 @@ class INVODEVAE(nn.Module):
         """
 
         if self.model =='sonode':
-            Xrec =  ztL[:,:,:,:ztL.shape[-1]//2].mean(0) #Only position is used for reconstructions, N, T, 1
+            Xrec =  ztL[:,:,:,:ztL.shape[-1]//2] #Only position is used for reconstructions, N, T, 1
             return Xrec 
         
         elif self.model == 'node':
