@@ -11,7 +11,7 @@ from model.misc.torch_utils import seed_everything
 from data.data_utils import load_data
 
 SOLVERS   = ["euler", "bdf", "rk4", "midpoint", "adams", "explicit_adams", "fixed_adams", "dopri5"]
-DE_MODELS = ['MLP', 'SVGP']
+DE_MODELS = ['MLP', 'SVGP', 'HBNODE']
 INV_FNCS  = ['MLP', 'SVGP']
 KERNELS   = ['RBF', 'DF']
 TASKS     = ['rot_mnist', 'rot_mnist_ou',  'mov_mnist', 'sin', 'bb', 'lv']
@@ -114,7 +114,7 @@ parser.add_argument('--forecast_vl',type=int, default=2,
 parser.add_argument('--beta_contr',type=float, default=1.0, 
                     help="Scaling factor for contrastive loss")
 
-#log 
+#log s
 parser.add_argument('--save', type=str, default='results/',
                     help="Directory name for saving all the model outputs")
 

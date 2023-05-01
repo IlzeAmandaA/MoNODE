@@ -16,6 +16,12 @@ def build_model(args, device, dtype, params):
     @param params: dict of data properties (see config.yml)
     @return: an object of INVODEVAE class
     """
+    if args.de=='hb':
+        if args.task==1:
+            data_dim = 1
+        elif args.task==1:
+            data_dim = 1
+        model = MODEL(data_dim, res=True, nhid=args.nhid, cont=True).to(device) #.to(0)
 
     #differential function
     aug = (args.task=='sin' or args.task=='spiral' or args.task=='lv' or args.task=='bb') and args.inv_latent_dim>0
