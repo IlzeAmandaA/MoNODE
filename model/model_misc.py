@@ -241,17 +241,17 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
                 for itr_test,test_batch in enumerate(testset):
                     test_batch = test_batch.to(invodevae.device)
                     dict_mse = compute_mse(invodevae, test_batch, T_train)
-                    for key,item in dict_mse.items():
+                    for key,val in dict_mse.items():
                         if key not in dict_mses:
                             dict_mses[key] = []
-                        dict_mses[key].append(item)
+                        dict_mses[key].append(val.item())
                 for key in dict_mses:
                     test_mse[key] = (np.mean(dict_mses[key]), np.std(dict_mses[key]))
 
                 logger.info('********** Current Best Model based on validation error ***********')
                 logger.info('Epoch:{:4d}/{:4d}'.format(ep, args.Nepoch))
-                for key, item in test_mse.items():
-                    logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, item[0], item[1]))
+                for key, val in test_mse.items():
+                    logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, val[0], val[1]))
 
             if ep % args.plot_every==0:
                 Xrec_tr, ztL_tr, _, _, C_tr = invodevae(tr_minibatch, L=args.plotL, T_custom=args.forecast_tr*tr_minibatch.shape[1])
@@ -276,8 +276,8 @@ def train_model(args, invodevae, plotter, trainset, validset, testset, logger, p
         logger.info('Epoch:{:4d}/{:4d} | time: {} | train_loss: {:8.2f} | train_mse  {:5.3f}  | valid_mse: {:5.3f}'.\
                     format(ep, args.Nepoch, datetime.now()-start_time, loss_meter.val, tr_mse_meter.avg, vl_mse_meter.val))
     
-    for key, item in test_mse.items():
-        logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, item[0], item[1]))
+    for key, val in test_mse.items():
+        logger.info('T={} test_mse {:5.3f}({:5.3f})'.format(key, val[0], val[1]))
 
     torch.save({
 		'args': args,
