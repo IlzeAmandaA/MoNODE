@@ -1,0 +1,83 @@
+sin:
+  train:
+    N: 300 
+    T: 50
+  valid:
+    N: 50
+    T: 50
+  test:
+    N: 50
+    T: 150
+  dt: 0.1
+  noise: 0.2
+  
+lv:
+  train:
+    N: 600
+    T: 100
+  valid:
+    N: 100
+    T: 100
+  test:
+    N: 100
+    T: 300
+  dt: 0.1
+  alpha: 1.0
+  gamma: 1.0
+  beta: 0.5
+  delta: 0.2
+  noise: 0.3
+  solver: dopri5
+
+rot_mnist:
+  train:
+    N: 1000
+    T: 16
+    rep: 1
+  valid: 
+    N: 100
+    T: 16
+    rep: 3
+  test:
+    N: 100
+    T: 16
+    rep: 3
+  digit: None
+
+bb:
+  train:
+    N: 1000
+    T: 20
+  valid: 
+    N: 100
+    T: 20
+  test:
+    N: 100
+    T: 40
+  nballs: 1
+  
+
+mocap:
+  train:
+    N: 46
+    T: 150
+  valid:
+    N: 5
+    T: 150
+  test:
+    N: 5
+    T: 150
+  dt: 0.05
+
+
+mocap_shift:
+  train:
+    N: 43
+    T: 150
+  valid:
+    N: 5
+    T: 150
+  test:
+    N: 8
+    T: 150
+  dt: 0.05

@@ -1,0 +1,57 @@
+Commands for experiments:
+####### Sinusoidal waves ##########
+NODE
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 8 --modulator_dim 0 --Nepoch 600
+MoNODE
+python main.py --task sin --model node --solver rk4 --batch_size 10 --T_in 3 --T_inv 10 --ode_latent_dim 4 --modulator_dim 4 --Nepoch 600
+
+SONODE
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --Nincr 4 --T_in 10 --T_inv 0 --ode_latent_dim 2 --modulator_dim 0 --Nepoch 600 
+MoSONODE
+python main.py --task sin --model sonode --order 2 --solver rk4 --batch_size 10 --Nincr 4 --T_in 10 --T_inv 10 --ode_latent_dim 2 --modulator_dim 4 --Nepoch 600 
+
+HBNODE
+python main.py --task sin --model hbnode --order 2 --solver rk4 --batch_size 10 --T_in 10 --T_inv 0 --ode_latent_dim 8  --modulator_dim 0 --Nepoch 600 
+MoHBNODE
+python main.py --task sin --model hbnode --order 2 --solver rk4 --batch_size 10 --T_in 10 --T_inv 10 --ode_latent_dim 4  --modulator_dim 4 --Nepoch 600 
+
+
+############## Predator-Prey ##############
+NODE
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --modulator_dim 0 --Nepoch 1500
+MoNODE
+python main.py --task lv --solver rk4 --batch_size 20 --T_in 8 --T_inv 40  --ode_latent_dim 8  --modulator_dim 8 --Nepoch 1500
+
+SONODE
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --Nincr 2 --T_in 40 --T_inv 0 --ode_latent_dim 4 --modulator_dim 0 --Nepoch 1500 --sonode_v MLP 
+MoSONODE
+python main.py --task lv --model sonode --order 2 --solver rk4 --batch_size 20 --Nincr 2 --T_in 40 --T_inv 40 --ode_latent_dim 4 --modulator_dim 8 --Nepoch 1500 --sonode_v MLP 
+
+HBNODE
+python main.py --task lv --model hbnode --order 2 --solver rk4 --batch_size 20 --T_in 40 --T_inv 0 --ode_latent_dim 16  --modulator_dim 0 --Nepoch 1500 
+MoHBNODE
+python main.py --task lv --model hbnode --order 2 --solver rk4 --batch_size 20 --T_in 10 --T_inv 40 --ode_latent_dim 8  --modulator_dim 8 --Nepoch 1500 
+
+############# Bouncing Ball with friction #################
+NODE
+python main.py --task bb --batch_size 25 --Nincr 2 --T_in 5 --ode_latent_dim 12 --Nepoch 200 --plot_every 20 --cnn_filt_enc 8 --cnn_filt_de 8 --solver rk4
+MoNODE
+python main.py --task bb --batch_size 25 --Nincr 2 --T_in 5 --T_inv 5 --ode_latent_dim 8 --modulator_dim 4 --content_dim 0 --Nepoch 200 --plot_every 20 --cnn_filt_enc 8 --cnn_filt_de 8 --solver rk4 
+
+LSONODE
+python main.py --task bb --batch_size 25 --Nincr 2 --T_in 5 --ode_latent_dim 12 --Nepoch 200 --plot_every 20 --cnn_filt_enc 8 --cnn_filt_de 8 --solver rk4 --order 2
+MoLSONDOE
+python main.py --task bb --batch_size 25 --Nincr 2 --T_in 5 --T_inv 5 --ode_latent_dim 8 --modulator_dim 4 --content_dim 0 --Nepoch 200 --plot_every 20 --cnn_filt_enc 8 --cnn_filt_de 8 --solver rk4 --order 2
+
+############## Rotating MNIST digits ##################
+NODE
+python main.py --task rot_mnist --model node --solver rk4 --lr 0.001 --batch_size 25 --T_in 5 --T_inv 0 --ode_latent_dim 32 --content_dim 0 --forecast_vl 1 --Nepoch 400 
+MoNODE
+python main.py --task rot_mnist --model node --solver rk4 --lr 0.001 --batch_size 25 --T_in 5 --T_inv 15 --ode_latent_dim 16 --content_dim 16 --forecast_vl 1  --Nepoch 400 
+
+############## MOCAP ################
+NODE
+python main.py --task mocap --model node --dec_H 128 --de_H 128 --batch_size 10 --Nincr 3 --T_in 75 --T_inv 75 --ode_latent_dim 24 --modulator_dim 0 --content_dim 0 --plot_every 250 --Nepoch 2000
+HBNODE
+python main.py --task mocap --model node --dec_H 128 --de_H 128 --batch_size 10 --Nincr 3 --T_in 75 --T_inv 75 --ode_latent_dim 8 --modulator_dim 8 --content_dim 8 --plot_every 250 --Nepoch 2000
+
